@@ -1,0 +1,43 @@
+name: Update Prices
+
+on:
+  schedule:
+    # 00:00 UTC = 07:00 ICT (Thailand). By this time SET has been closed since
+    # 16:30 ICT the previous evening, and NYSE/NASDAQ has closed around
+    # 03:00-04:00 ICT that same morning — so both markets are covered in one run.
+    - cron: "0 0 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install yfinance firebase-admin
+
+      - name: Fetch latest prices (public prices.json fallback)
+        run: python scripts/fetch_prices.py
+
+      - name: Write auto snapshot to Firestore
+        if: ${{ secrets.FIREBASE_UID != '' && secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_UID: ${{ secrets.FIREBASE_UID }}
+        run: python scripts/auto_snapshot.py
+
+      - name: Commit updated prices.json
+        run: |
+          git config user.name "price-bot"
+          git config user.email "price-bot@users.noreply.github.com"
+          git add prices.json
+          git diff --staged --quiet || git commit -m "Update prices $(date -u +%Y-%m-%d)"
+          git push
