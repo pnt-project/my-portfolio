@@ -1,0 +1,7 @@
+{
+  "stocks": ["PTT", "AOT", "KBANK"],
+  "benchmarks": [
+    { "name": "SET Index", "symbol": "^SET.BK" },
+    { "name": "Gold", "symbol": "GC=F" }
+  ]
+}
