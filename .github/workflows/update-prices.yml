@@ -14,6 +14,9 @@ permissions:
 jobs:
   update-prices:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_UID: ${{ secrets.FIREBASE_UID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,10 +31,7 @@ jobs:
         run: python scripts/fetch_prices.py
 
       - name: Write auto snapshot to Firestore
-        if: ${{ secrets.FIREBASE_UID != '' && secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_UID: ${{ secrets.FIREBASE_UID }}
+        if: ${{ env.FIREBASE_UID != '' && env.FIREBASE_SERVICE_ACCOUNT != '' }}
         run: python scripts/auto_snapshot.py
 
       - name: Commit updated prices.json
