@@ -280,7 +280,7 @@
   <p class="panel-title">Snapshot &amp; NAV เปรียบเทียบ (ฐาน 100)</p>
   <div style="overflow-x:auto;">
   <table>
-    <thead><tr><th>วันที่</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th><th></th></tr></thead>
+    <thead id="snap-thead"><tr><th>วันที่</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th><th></th></tr></thead>
     <tbody id="snap-body"></tbody>
   </table>
   </div>
@@ -426,7 +426,7 @@ var firebaseConfig = {
   appId: "1:70968325570:web:5e7f9a467db8b1480e125b"
 };
 var firebaseReady = firebaseConfig.apiKey !== "YOUR_API_KEY";
-var auth = null, db = null, currentUser = null, unsubscribeSnapshot = null, isApplyingRemote = false;
+var auth = null, db = null, currentUser = null, unsubscribeSnapshot = null, isApplyingRemote = false, lastPushedFingerprint = null;
 
 if(firebaseReady && typeof firebase !== 'undefined'){
   try{
@@ -438,6 +438,7 @@ if(firebaseReady && typeof firebase !== 'undefined'){
 }
 
 /* ---------- persistence ---------- */
+var firestoreSaveTimer = null;
 function saveData(){
   syncGlobalsToActivePortfolio();
   try{
@@ -445,7 +446,8 @@ function saveData(){
     localStorage.setItem('investmentTrackerData', JSON.stringify(data));
   }catch(e){}
   if(db && currentUser && !isApplyingRemote){
-    pushToFirestore(currentUser.uid);
+    if(firestoreSaveTimer){ clearTimeout(firestoreSaveTimer); }
+    firestoreSaveTimer = setTimeout(function(){ pushToFirestore(currentUser.uid); }, 800);
   }
 }
 function pushToFirestore(uid){
@@ -454,19 +456,41 @@ function pushToFirestore(uid){
     portfolios: portfolios, activePortfolioId: activePortfolioId, portfolioIdCounter: portfolioIdCounter,
     updatedAt: new Date().toISOString()
   };
+  lastPushedFingerprint = JSON.stringify({portfolios: portfolios, activePortfolioId: activePortfolioId, portfolioIdCounter: portfolioIdCounter});
   db.collection('portfolios').doc(uid).set(data).catch(function(e){ console.error('Firestore write failed', e); });
 }
+var stateLoadedFrom = 'none'; /* 'none' | 'local' | 'firestore' — prevents initApp() from
+  clobbering fresher Firestore data with stale localStorage data when the PIN lock delays
+  initApp() long enough for Firestore's auth-restore + sync to complete first */
+
 function subscribeFirestore(uid){
   if(unsubscribeSnapshot){ unsubscribeSnapshot(); }
-  unsubscribeSnapshot = db.collection('portfolios').doc(uid).onSnapshot(function(doc){
+  unsubscribeSnapshot = db.collection('portfolios').doc(uid).onSnapshot({includeMetadataChanges: true}, function(doc){
+    if(doc.metadata.hasPendingWrites){
+      /* this is the optimistic echo of our own write (e.g. from typing) —
+         the UI already reflects it locally, so skip re-rendering to avoid
+         stealing focus from whatever input the user is currently typing in */
+      return;
+    }
     if(doc.exists){
+      var incoming = JSON.stringify({portfolios: doc.data().portfolios, activePortfolioId: doc.data().activePortfolioId, portfolioIdCounter: doc.data().portfolioIdCounter});
+      if(incoming === lastPushedFingerprint){
+        /* server just confirmed a write we made ourselves — local UI already
+           matches this exactly, so skip the rebuild (still guards against
+           stealing focus if the user is still typing when the ack arrives) */
+        return;
+      }
       isApplyingRemote = true;
-      applyLoadedState(doc.data());
-      renderPortfolioSelect();
-      renderBenchRows();
-      renderSnapshotBenchInputs();
-      render();
-      isApplyingRemote = false;
+      try{
+        applyLoadedState(doc.data());
+        stateLoadedFrom = 'firestore';
+        renderPortfolioSelect();
+        renderBenchRows();
+        renderSnapshotBenchInputs();
+        render();
+      } finally {
+        isApplyingRemote = false;
+      }
     } else {
       pushToFirestore(uid);
     }
@@ -533,6 +557,8 @@ document.getElementById('portfolio-select').addEventListener('change', function(
   syncGlobalsToActivePortfolio();
   activePortfolioId = this.value;
   loadActivePortfolio();
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
   renderBenchRows();
   renderSnapshotBenchInputs();
   render();
@@ -546,6 +572,8 @@ document.getElementById('portfolio-add').addEventListener('click', function(){
   portfolios.push(newP);
   activePortfolioId = newP.id;
   loadActivePortfolio();
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
   renderPortfolioSelect();
   renderBenchRows();
   renderSnapshotBenchInputs();
@@ -566,6 +594,8 @@ document.getElementById('portfolio-delete').addEventListener('click', function()
   portfolios = portfolios.filter(function(p){ return p.id !== activePortfolioId; });
   activePortfolioId = portfolios[0].id;
   loadActivePortfolio();
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
   renderPortfolioSelect();
   renderBenchRows();
   renderSnapshotBenchInputs();
@@ -694,6 +724,9 @@ function escapeHtml(str){
   var div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+function escapeAttr(str){
+  return escapeHtml(str).replace(/"/g, '&quot;');
 }
 
 function dividendsBySymbol(){
@@ -899,8 +932,8 @@ function renderChart(series){
 function renderBenchRows(){
   var html = benchmarkComponents.map(function(b){
     return '<div class="bench-row">' +
-      '<input type="text" class="bench-name-input" data-id="' + b.id + '" placeholder="ชื่อสินทรัพย์ เช่น SET Index" value="' + (b.name || '').replace(/"/g,'&quot;') + '" />' +
-      '<input type="text" class="bench-symbol-input" data-id="' + b.id + '" placeholder="สัญลักษณ์ Yahoo (ไม่บังคับ)" value="' + (b.symbol || '').replace(/"/g,'&quot;') + '" />' +
+      '<input type="text" class="bench-name-input" data-id="' + b.id + '" placeholder="ชื่อสินทรัพย์ เช่น SET Index" value="' + escapeAttr(b.name || '') + '" />' +
+      '<input type="text" class="bench-symbol-input" data-id="' + b.id + '" placeholder="สัญลักษณ์ Yahoo (ไม่บังคับ)" value="' + escapeAttr(b.symbol || '') + '" />' +
       '<input type="number" class="bench-weight-input" data-id="' + b.id + '" min="0" max="100" step="1" placeholder="%" value="' + b.weight + '" />' +
       (benchmarkComponents.length > 1 ? '<button type="button" class="bench-remove-btn btn-secondary" data-id="' + b.id + '">ลบ</button>' : '<span></span>') +
       '</div>';
@@ -956,7 +989,7 @@ function renderWeightTotal(){
 function renderSnapshotBenchInputs(){
   var container = document.getElementById('bench-value-inputs');
   container.innerHTML = benchmarkComponents.map(function(b){
-    var fetchBtn = b.symbol ? '<button type="button" class="fetch-bench-btn btn-secondary" data-id="' + b.id + '" data-symbol="' + b.symbol.replace(/"/g,'&quot;') + '" style="padding:7px 9px;font-size:12px;" title="ดึงค่าล่าสุดจาก Yahoo Finance (' + b.symbol + ')">🔄</button>' : '';
+    var fetchBtn = b.symbol ? '<button type="button" class="fetch-bench-btn btn-secondary" data-id="' + b.id + '" data-symbol="' + escapeAttr(b.symbol) + '" style="padding:7px 9px;font-size:12px;" title="ดึงค่าล่าสุดจาก Yahoo Finance (' + escapeHtml(b.symbol) + ')">🔄</button>' : '';
     return '<div>' +
       '<label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">' + (b.name || 'Benchmark') + '</label>' +
       '<div style="display:flex;gap:4px;">' +
@@ -970,16 +1003,26 @@ function renderSnapshotBenchInputs(){
 /* ---------- price fetching via Yahoo Finance (unofficial, through public CORS proxy) ---------- */
 function fetchYahooPrice(symbol){
   var apiUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(symbol);
-  var proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
-  return fetch(proxied).then(function(r){
-    if(!r.ok) throw new Error('network error');
-    return r.json();
-  }).then(function(data){
+  var proxies = [
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl),
+    'https://corsproxy.io/?url=' + encodeURIComponent(apiUrl)
+  ];
+  function extractPrice(data){
     var result = data && data.chart && data.chart.result && data.chart.result[0];
     var price = result && result.meta && result.meta.regularMarketPrice;
     if(!price) throw new Error('no price in response');
     return price;
-  });
+  }
+  function tryProxy(index){
+    if(index >= proxies.length){ return Promise.reject(new Error('all proxies failed')); }
+    return fetch(proxies[index]).then(function(r){
+      if(!r.ok) throw new Error('network error');
+      return r.json();
+    }).then(extractPrice).catch(function(){
+      return tryProxy(index + 1);
+    });
+  }
+  return tryProxy(0);
 }
 
 function render(){
@@ -1005,11 +1048,11 @@ function render(){
     totalDiv += divRecv;
 
     rows += '<tr>' +
-      '<td style="font-weight:500;">' + sym + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(sym) + '</td>' +
       '<td style="text-align:right;">' + fmt(h.qty) + '</td>' +
       '<td style="text-align:right;">' + fmt(avgCost) + '</td>' +
       '<td style="text-align:right;">' + fmt(breakeven) + '</td>' +
-      '<td style="text-align:right;"><div style="display:flex;gap:4px;justify-content:flex-end;"><input type="number" step="0.01" min="0" data-symbol="' + sym + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:80px;text-align:right;" /><button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + sym + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + sym + '.BK)">🔄</button></div></td>' +
+      '<td style="text-align:right;"><div style="display:flex;gap:4px;justify-content:flex-end;"><input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:80px;text-align:right;" /><button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + escapeHtml(sym) + '.BK)">🔄</button></div></td>' +
       '<td style="text-align:right;">' + fmt(value) + '</td>' +
       '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '</td>' +
       '</tr>';
@@ -1030,12 +1073,12 @@ function render(){
     var noteText = t.note ? escapeHtml(t.note) : '<span style="color:var(--text-muted);">-</span>';
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + (t.date||'-') + '</td>' +
-      '<td style="font-weight:500;">' + t.symbol + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(t.symbol) + '</td>' +
       '<td style="color:' + typeColor + ';">' + typeLabel + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty) + '</td>' +
       '<td style="text-align:right;">' + fmt(t.price) + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty * t.price) + '</td>' +
-      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (t.note ? escapeHtml(t.note) : '') + '">' + noteText + '</td>' +
+      '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (t.note ? escapeAttr(t.note) : '') + '">' + noteText + '</td>' +
       '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="tx" data-id="' + t.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
@@ -1059,7 +1102,7 @@ function render(){
   var divRows = dividendEntries.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(d){
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + d.date + '</td>' +
-      '<td style="font-weight:500;">' + d.symbol + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(d.symbol) + '</td>' +
       '<td style="text-align:right;">' + fmt(d.amount) + '</td>' +
       '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="div" data-id="' + d.id + '">ลบ</button></td>' +
       '</tr>';
@@ -1134,17 +1177,28 @@ function render(){
   if(fullResult){
     fullResult.series.forEach(function(p){ navByDate[p.date] = {portfolio: 100*(1+p.twrrCum), bench: 100*(1+p.benchCum)}; });
   }
+  var benchHeaderCols = benchmarkComponents.map(function(b){
+    return '<th style="text-align:right;">' + escapeHtml(b.name || 'Benchmark') + '</th>';
+  }).join('');
+  document.getElementById('snap-thead').innerHTML =
+    '<tr><th>วันที่</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th>' +
+    benchHeaderCols + '<th></th></tr>';
   var snapRows = snapshots.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(s){
     var nav = navByDate[s.date];
+    var benchCells = benchmarkComponents.map(function(b){
+      var v = s.benchValues ? s.benchValues[b.id] : undefined;
+      return '<td style="text-align:right;">' + (v !== undefined && v !== null ? fmt(v) : '<span style="color:var(--text-muted);">-</span>') + '</td>';
+    }).join('');
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + s.date + '</td>' +
       '<td style="text-align:right;">' + fmt(s.value) + '</td>' +
       '<td style="text-align:right;">' + (nav ? fmt(nav.portfolio) : '-') + '</td>' +
       '<td style="text-align:right;">' + (nav ? fmt(nav.bench) : '-') + '</td>' +
+      benchCells +
       '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="snap" data-id="' + s.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
-  document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="5" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
+  document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="' + (5 + benchmarkComponents.length) + '" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
 
   saveData();
 }
@@ -1357,7 +1411,10 @@ applyTheme(savedTheme);
 updatePinButtons();
 
 function initApp(){
-  loadData();
+  if(stateLoadedFrom !== 'firestore'){
+    loadData();
+    stateLoadedFrom = 'local';
+  }
   renderPortfolioSelect();
   renderBenchRows();
   renderSnapshotBenchInputs();
