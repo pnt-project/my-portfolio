@@ -184,8 +184,20 @@
           <option value="buy">ซื้อ</option>
           <option value="sell">ขาย</option>
         </select>
-        <input id="t-qty" type="number" min="0" step="1" placeholder="จำนวนหุ้น" />
-        <input id="t-price" type="number" min="0" step="0.01" placeholder="ราคาต่อหุ้น" />
+        <select id="t-currency" style="grid-column:1/-1;">
+          <option value="THB">สกุลเงิน: บาท (THB)</option>
+          <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD) — เช่น ETF ต่างประเทศ</option>
+        </select>
+        <input id="t-qty" type="number" min="0" step="1" placeholder="จำนวนหน่วย/หุ้น" style="grid-column:1/-1;" />
+        <input id="t-price" type="number" min="0" step="0.01" placeholder="ราคาต่อหน่วย (บาท)" style="grid-column:1/-1;" />
+        <div id="t-usd-fields" style="display:none;grid-column:1/-1;">
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;">
+            <input id="t-price-usd" type="number" min="0" step="0.01" placeholder="ราคาต่อหน่วย (USD)" />
+            <input id="t-fx-rate" type="number" min="0" step="0.0001" placeholder="อัตราแลกเปลี่ยน (บาท/USD)" />
+            <button id="t-fx-fetch" type="button" class="btn-secondary" style="white-space:nowrap;">ดึงอัตรา</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">มูลค่ารวม (บาท) = ราคา USD × อัตราแลกเปลี่ยน × จำนวนหน่วย — คำนวณให้อัตโนมัติตอนกดเพิ่ม</p>
+        </div>
         <input id="t-date" type="date" style="grid-column:1/-1;" />
         <input id="t-note" type="text" placeholder="โน้ต (ไม่บังคับ) เช่น เหตุผลที่ซื้อ/ขาย" style="grid-column:1/-1;" />
       </div>
@@ -416,6 +428,9 @@ var transactions = [];
 var dividendEntries = [];
 var cashFlows = [];
 var currentPrices = {};
+var currentPricesForeign = {}; /* {SYMBOL: {priceUSD, fxRate}} — for USD-denominated holdings (e.g. foreign ETFs) */
+var currencyOverrides = {}; /* {SYMBOL: 'USD'|'THB'} — manual override, e.g. for symbols whose existing
+  transactions predate the USD feature and so aren't auto-detected as USD from transaction history */
 var snapshots = [];
 var benchmarkComponents = [{id:'b1', name:'', weight:100}];
 var benchIdCounter = 1;
@@ -433,7 +448,7 @@ var portfolioIdCounter = 1;
 function createEmptyPortfolio(id, name){
   return {
     id: id, name: name,
-    transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, snapshots: [],
+    transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, currentPricesForeign: {}, currencyOverrides: {}, snapshots: [],
     benchmarkComponents: [{id: 'b1', name: '', weight: 100}],
     dcaPlan: {monthlyAmount: 0, startDate: '', months: 12},
     targetAllocations: [],
@@ -450,6 +465,8 @@ function migrateFlatToPortfolios(flat){
       dividendEntries: flat.dividendEntries || [],
       cashFlows: flat.cashFlows || [],
       currentPrices: flat.currentPrices || {},
+      currentPricesForeign: flat.currentPricesForeign || {},
+      currencyOverrides: flat.currencyOverrides || {},
       snapshots: flat.snapshots || [],
       benchmarkComponents: (flat.benchmarkComponents && flat.benchmarkComponents.length) ? flat.benchmarkComponents : [{id:'b1', name:'', weight:100}],
       dcaPlan: flat.dcaPlan || {monthlyAmount: 0, startDate: '', months: 12},
@@ -468,6 +485,8 @@ function syncGlobalsToActivePortfolio(){
   active.dividendEntries = dividendEntries;
   active.cashFlows = cashFlows;
   active.currentPrices = currentPrices;
+  active.currentPricesForeign = currentPricesForeign;
+  active.currencyOverrides = currencyOverrides;
   active.snapshots = snapshots;
   active.benchmarkComponents = benchmarkComponents;
   active.dcaPlan = dcaPlan;
@@ -483,6 +502,8 @@ function loadActivePortfolio(){
   dividendEntries = active.dividendEntries || [];
   cashFlows = active.cashFlows || [];
   currentPrices = active.currentPrices || {};
+  currentPricesForeign = active.currentPricesForeign || {};
+  currencyOverrides = active.currencyOverrides || {};
   snapshots = active.snapshots || [];
   benchmarkComponents = (active.benchmarkComponents && active.benchmarkComponents.length) ? active.benchmarkComponents : [{id:'b1', name:'', weight:100}];
   dcaPlan = active.dcaPlan || {monthlyAmount: 0, startDate: '', months: 12};
@@ -807,7 +828,7 @@ document.getElementById('import-file-input').addEventListener('change', function
 
 document.getElementById('clear-data').addEventListener('click', function(){
   if(!window.confirm('ต้องการล้างข้อมูลของ "พอร์ตที่เลือกอยู่ตอนนี้" ทั้งหมดหรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้ (พอร์ตอื่นจะไม่ถูกลบ)')) return;
-  transactions = []; dividendEntries = []; cashFlows = []; currentPrices = {}; snapshots = [];
+  transactions = []; dividendEntries = []; cashFlows = []; currentPrices = {}; currentPricesForeign = {}; currencyOverrides = {}; snapshots = [];
   benchmarkComponents = [{id:'b1', name:'', weight:100}];
   benchIdCounter = 1; txId = 0; divId = 0; cashId = 0; snapId = 0;
   renderBenchRows();
@@ -835,6 +856,15 @@ function dividendsBySymbol(){
   var out = {};
   dividendEntries.forEach(function(d){ out[d.symbol] = (out[d.symbol]||0) + d.amount; });
   return out;
+}
+
+function getSymbolCurrency(sym){
+  if(currencyOverrides[sym]){ return currencyOverrides[sym]; }
+  var latest = null;
+  transactions.forEach(function(t){
+    if(t.symbol === sym && (!latest || t.date >= latest.date)){ latest = t; }
+  });
+  return (latest && latest.currency === 'USD') ? 'USD' : 'THB';
 }
 
 function computeHoldings(){
@@ -1459,12 +1489,30 @@ function render(){
     totalPnl += pnl;
     totalDiv += divRecv;
 
+    var isUsd = getSymbolCurrency(sym) === 'USD';
+    var priceCell;
+    if(isUsd){
+      var fx = currentPricesForeign[sym] || {};
+      var fxPriceUsd = fx.priceUSD !== undefined ? fx.priceUSD : (avgCost && fx.fxRate ? (avgCost / fx.fxRate) : '');
+      var fxRateVal = fx.fxRate !== undefined ? fx.fxRate : '';
+      priceCell = '<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;">' +
+        '<div style="display:flex;gap:3px;">' +
+        '<input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-usd-input" value="' + (fxPriceUsd === '' ? '' : Number(fxPriceUsd).toFixed(2)) + '" placeholder="USD" style="width:64px;text-align:right;" />' +
+        '<input type="number" step="0.0001" min="0" data-symbol="' + escapeAttr(sym) + '" class="fx-rate-input" value="' + (fxRateVal === '' ? '' : Number(fxRateVal).toFixed(4)) + '" placeholder="บาท/USD" style="width:70px;text-align:right;" />' +
+        '<button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" data-usd="1" style="padding:6px 8px;font-size:12px;" title="ดึงราคา USD และอัตราแลกเปลี่ยนล่าสุด">🔄</button>' +
+        '</div>' +
+        '<span style="font-size:11px;color:var(--text-muted);">= ' + fmt(curPrice) + ' บาท</span>' +
+        '</div>';
+    } else {
+      priceCell = '<div style="display:flex;gap:4px;justify-content:flex-end;"><input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:80px;text-align:right;" /><button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + escapeHtml(sym) + '.BK)">🔄</button></div>';
+    }
+
     rows += '<tr>' +
-      '<td style="font-weight:500;">' + escapeHtml(sym) + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(sym) + ' <select class="currency-override-select" data-symbol="' + escapeAttr(sym) + '" style="width:auto;padding:1px 4px;font-size:10px;display:inline-block;' + (isUsd ? 'color:var(--text-accent);border-color:var(--text-accent);' : 'color:var(--text-muted);') + '"><option value="THB"' + (isUsd ? '' : ' selected') + '>บาท</option><option value="USD"' + (isUsd ? ' selected' : '') + '>USD</option></select></td>' +
       '<td style="text-align:right;">' + fmt(h.qty) + '</td>' +
       '<td style="text-align:right;">' + fmt(avgCost) + '</td>' +
       '<td style="text-align:right;">' + fmt(breakeven) + '</td>' +
-      '<td style="text-align:right;"><div style="display:flex;gap:4px;justify-content:flex-end;"><input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:80px;text-align:right;" /><button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + escapeHtml(sym) + '.BK)">🔄</button></div></td>' +
+      '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(value) + '</td>' +
       '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '</td>' +
       '</tr>';
@@ -1472,9 +1520,36 @@ function render(){
 
   document.getElementById('holdings-body').innerHTML = rows || '<tr><td colspan="7" style="color:var(--text-muted);">ยังไม่มีหุ้นในพอร์ต</td></tr>';
 
+  Array.prototype.forEach.call(document.querySelectorAll('.currency-override-select'), function(sel){
+    sel.addEventListener('change', function(){
+      var sym = this.getAttribute('data-symbol');
+      currencyOverrides[sym] = this.value;
+      render();
+    });
+  });
   Array.prototype.forEach.call(document.querySelectorAll('.price-input'), function(inp){
     inp.addEventListener('change', function(){
       currentPrices[this.getAttribute('data-symbol')] = parseFloat(this.value) || 0;
+      render();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.price-usd-input'), function(inp){
+    inp.addEventListener('change', function(){
+      var sym = this.getAttribute('data-symbol');
+      var fx = currentPricesForeign[sym] || {};
+      fx.priceUSD = parseFloat(this.value) || 0;
+      currentPricesForeign[sym] = fx;
+      currentPrices[sym] = (fx.priceUSD || 0) * (fx.fxRate || 0);
+      render();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.fx-rate-input'), function(inp){
+    inp.addEventListener('change', function(){
+      var sym = this.getAttribute('data-symbol');
+      var fx = currentPricesForeign[sym] || {};
+      fx.fxRate = parseFloat(this.value) || 0;
+      currentPricesForeign[sym] = fx;
+      currentPrices[sym] = (fx.priceUSD || 0) * (fx.fxRate || 0);
       render();
     });
   });
@@ -1483,12 +1558,16 @@ function render(){
     var typeLabel = t.type === 'buy' ? 'ซื้อ' : 'ขาย';
     var typeColor = t.type === 'buy' ? 'var(--text-accent)' : 'var(--text-danger)';
     var noteText = t.note ? escapeHtml(t.note) : '<span style="color:var(--text-muted);">-</span>';
+    var priceCell = fmt(t.price);
+    if(t.currency === 'USD' && t.priceForeign){
+      priceCell = fmt(t.price) + '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(t.priceForeign) + ' × ' + fmt(t.fxRate) + ')</span>';
+    }
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + (t.date||'-') + '</td>' +
-      '<td style="font-weight:500;">' + escapeHtml(t.symbol) + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(t.symbol) + (t.currency === 'USD' ? ' <span style="font-size:10px;color:var(--text-accent);border:1px solid var(--text-accent);border-radius:4px;padding:1px 4px;">USD</span>' : '') + '</td>' +
       '<td style="color:' + typeColor + ';">' + typeLabel + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty) + '</td>' +
-      '<td style="text-align:right;">' + fmt(t.price) + '</td>' +
+      '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty * t.price) + '</td>' +
       '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (t.note ? escapeAttr(t.note) : '') + '">' + noteText + '</td>' +
       '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="tx" data-id="' + t.id + '">ลบ</button></td>' +
@@ -1799,19 +1878,56 @@ document.getElementById('pc-load-btn').addEventListener('click', function(){
   });
 });
 
+document.getElementById('t-currency').addEventListener('change', function(){
+  var isUsd = this.value === 'USD';
+  document.getElementById('t-usd-fields').style.display = isUsd ? 'block' : 'none';
+  document.getElementById('t-price').style.display = isUsd ? 'none' : 'block';
+});
+
+document.getElementById('t-fx-fetch').addEventListener('click', function(){
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    document.getElementById('t-fx-rate').value = rate.toFixed(4);
+  }).catch(function(){
+    window.alert('ดึงอัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+});
+
 document.getElementById('t-add').addEventListener('click', function(){
   var symbol = document.getElementById('t-symbol').value.trim().toUpperCase();
   var type = document.getElementById('t-type').value;
+  var currency = document.getElementById('t-currency').value;
   var qty = parseFloat(document.getElementById('t-qty').value);
-  var price = parseFloat(document.getElementById('t-price').value);
   var date = document.getElementById('t-date').value;
   var note = document.getElementById('t-note').value.trim();
+
+  var price, priceForeign = null, fxRate = null;
+  if(currency === 'USD'){
+    priceForeign = parseFloat(document.getElementById('t-price-usd').value);
+    fxRate = parseFloat(document.getElementById('t-fx-rate').value);
+    if(!priceForeign || !fxRate || priceForeign <= 0 || fxRate <= 0){ window.alert('กรอกราคา USD และอัตราแลกเปลี่ยนให้ครบ'); return; }
+    price = priceForeign * fxRate;
+  } else {
+    price = parseFloat(document.getElementById('t-price').value);
+  }
+
   if(!symbol || !qty || !price || qty <= 0 || price <= 0 || !date) return;
   txId++;
-  transactions.push({id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note});
+  var record = {id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note, currency:currency};
+  if(currency === 'USD'){ record.priceForeign = priceForeign; record.fxRate = fxRate; }
+  transactions.push(record);
+
   document.getElementById('t-symbol').value = '';
   document.getElementById('t-qty').value = '';
   document.getElementById('t-price').value = '';
+  document.getElementById('t-price-usd').value = '';
+  document.getElementById('t-fx-rate').value = '';
   document.getElementById('t-date').value = '';
   document.getElementById('t-note').value = '';
   render();
@@ -1897,17 +2013,31 @@ document.addEventListener('click', function(e){
   var btn = e.target.closest ? e.target.closest('.fetch-price-btn') : null;
   if(!btn) return;
   var sym = btn.getAttribute('data-symbol');
+  var isUsd = btn.getAttribute('data-usd') === '1';
   var original = btn.textContent;
   btn.textContent = '⏳';
   btn.disabled = true;
-  fetchYahooPrice(sym + '.BK').then(function(price){
-    currentPrices[sym] = price;
-    render();
-  }).catch(function(){
-    btn.textContent = original;
-    btn.disabled = false;
-    window.alert('ดึงราคาของ ' + sym + ' ไม่สำเร็จ (อาจเป็นเพราะสัญลักษณ์ไม่ตรง หรือ proxy ล่มชั่วคราว) กรุณากรอกราคาด้วยตนเอง');
-  });
+  if(isUsd){
+    Promise.all([fetchYahooPrice(sym), fetchYahooPrice('THB=X')]).then(function(results){
+      var priceUsd = results[0], fxRate = results[1];
+      currentPricesForeign[sym] = {priceUSD: priceUsd, fxRate: fxRate};
+      currentPrices[sym] = priceUsd * fxRate;
+      render();
+    }).catch(function(){
+      btn.textContent = original;
+      btn.disabled = false;
+      window.alert('ดึงราคาของ ' + sym + ' หรืออัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+    });
+  } else {
+    fetchYahooPrice(sym + '.BK').then(function(price){
+      currentPrices[sym] = price;
+      render();
+    }).catch(function(){
+      btn.textContent = original;
+      btn.disabled = false;
+      window.alert('ดึงราคาของ ' + sym + ' ไม่สำเร็จ (อาจเป็นเพราะสัญลักษณ์ไม่ตรง หรือ proxy ล่มชั่วคราว) กรุณากรอกราคาด้วยตนเอง');
+    });
+  }
 });
 
 document.addEventListener('click', function(e){
@@ -1937,7 +2067,16 @@ document.getElementById('fetch-all-prices').addEventListener('click', function()
   if(syms.length === 0){ statusEl.textContent = 'ไม่มีหุ้นในพอร์ต'; return; }
   statusEl.textContent = 'กำลังดึงราคา ' + syms.length + ' รายการ...';
   var okCount = 0;
+  var fxCache = null; /* fetch USD/THB rate at most once per batch */
   var promises = syms.map(function(sym){
+    if(getSymbolCurrency(sym) === 'USD'){
+      var fxPromise = fxCache || (fxCache = fetchYahooPrice('THB=X'));
+      return Promise.all([fetchYahooPrice(sym), fxPromise]).then(function(results){
+        currentPricesForeign[sym] = {priceUSD: results[0], fxRate: results[1]};
+        currentPrices[sym] = results[0] * results[1];
+        okCount++;
+      }).catch(function(){});
+    }
     return fetchYahooPrice(sym + '.BK').then(function(price){
       currentPrices[sym] = price;
       okCount++;
