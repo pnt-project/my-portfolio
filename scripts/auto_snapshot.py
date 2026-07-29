@@ -60,6 +60,17 @@ def get_price(ticker_symbol):
     return price
 
 
+def get_symbol_currency(transactions, sym, overrides=None):
+    """Mirror the frontend's getSymbolCurrency: manual override first, then most recent transaction."""
+    if overrides and overrides.get(sym):
+        return overrides[sym]
+    latest = None
+    for t in transactions:
+        if t.get("symbol") == sym and (latest is None or t.get("date", "") >= latest.get("date", "")):
+            latest = t
+    return "USD" if latest and latest.get("currency") == "USD" else "THB"
+
+
 updated_portfolios = []
 for portfolio in data["portfolios"]:
     transactions = portfolio.get("transactions", [])
@@ -79,12 +90,24 @@ for portfolio in data["portfolios"]:
             h["qty"] -= t["qty"]
 
     current_prices = dict(portfolio.get("currentPrices", {}))
+    current_prices_foreign = dict(portfolio.get("currentPricesForeign", {}))
+    fx_rate = None
     total_value = 0.0
     for sym, h in holdings.items():
         if h["qty"] <= 0.0001:
             continue
         fallback_price = h["cost"] / h["qty"]
-        price = get_price(sym + ".BK") or fallback_price
+        if get_symbol_currency(transactions, sym, portfolio.get("currencyOverrides")) == "USD":
+            if fx_rate is None:
+                fx_rate = get_price("THB=X")
+            price_usd = get_price(sym)
+            if price_usd is not None and fx_rate:
+                price = price_usd * fx_rate
+                current_prices_foreign[sym] = {"priceUSD": round(price_usd, 2), "fxRate": round(fx_rate, 4)}
+            else:
+                price = fallback_price
+        else:
+            price = get_price(sym + ".BK") or fallback_price
         current_prices[sym] = round(price, 2)
         total_value += h["qty"] * price
 
@@ -105,11 +128,14 @@ for portfolio in data["portfolios"]:
         "date": today,
         "value": round(total_value, 2),
         "benchValues": bench_values,
+        "source": "auto",
+        "createdAt": datetime.now(ICT).isoformat(),
     })
     counters["snapId"] = next_snap_id
 
     portfolio["snapshots"] = snapshots
     portfolio["currentPrices"] = current_prices
+    portfolio["currentPricesForeign"] = current_prices_foreign
     portfolio["counters"] = counters
     updated_portfolios.append(portfolio)
 
