@@ -2,9 +2,6 @@ name: Update Prices
 
 on:
   schedule:
-    # 00:00 UTC = 07:00 ICT (Thailand). By this time SET has been closed since
-    # 16:30 ICT the previous evening, and NYSE/NASDAQ has closed around
-    # 03:00-04:00 ICT that same morning — so both markets are covered in one run.
     - cron: "0 0 * * 1-5"
   workflow_dispatch: {}
 
@@ -40,4 +37,5 @@ jobs:
           git config user.email "price-bot@users.noreply.github.com"
           git add prices.json
           git diff --staged --quiet || git commit -m "Update prices $(date -u +%Y-%m-%d)"
+          git pull --rebase origin main
           git push
