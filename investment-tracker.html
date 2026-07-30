@@ -201,7 +201,10 @@
         <input id="t-date" type="date" style="grid-column:1/-1;" />
         <input id="t-note" type="text" placeholder="โน้ต (ไม่บังคับ) เช่น เหตุผลที่ซื้อ/ขาย" style="grid-column:1/-1;" />
       </div>
-      <button id="t-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="t-add" style="flex:1;">+ เพิ่ม</button>
+        <button id="t-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
+      </div>
     </div>
 
     <div class="panel">
@@ -309,26 +312,21 @@
 
     <div class="panel">
       <p class="panel-title">📅 แผน DCA เทียบกับเงินฝาก-ถอนจริง</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-bottom:10px;align-items:end;">
-        <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">DCA ต่อเดือน (บาท)</label>
-          <input id="dca-amount" type="number" min="0" step="100" placeholder="เช่น 5000" />
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">เริ่มเดือน</label>
-          <input id="dca-start" type="date" />
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">ระยะเวลา (เดือน)</label>
-          <input id="dca-months" type="number" min="1" step="1" placeholder="เช่น 12" />
-        </div>
+      <div style="margin-bottom:10px;max-width:220px;">
+        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">เริ่มเดือน</label>
+        <input id="dca-start" type="date" />
+      </div>
+      <p style="font-size:12px;font-weight:500;margin:0 0 6px;color:var(--text-secondary);">ช่วงแผน (ต่อกันตามลำดับ)</p>
+      <div id="dca-tier-rows" style="margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="dca-add-tier" type="button" class="btn-secondary">+ เพิ่มช่วง</button>
         <button id="dca-save" type="button">บันทึกแผน</button>
       </div>
-      <p class="panel-sub" style="margin-top:0;">เทียบเงินที่ตั้งใจฝากตามแผน DCA กับเงินฝาก-ถอนจริงที่บันทึกไว้ในส่วน "เงินฝาก/ถอนเงินสด" สะสมทีละเดือน</p>
+      <p class="panel-sub" style="margin-top:10px;">เช่น ช่วงที่ 1: 6 เดือน เดือนละ 2,000 บาท ตามด้วยช่วงที่ 2: 6 เดือน เดือนละ 4,000 บาท — เทียบกับเงินฝาก-ถอนจริงที่บันทึกไว้ในส่วน "เงินฝาก/ถอนเงินสด" สะสมทีละเดือน</p>
       <div id="dca-chart-container"></div>
-      <div style="overflow-x:auto;margin-top:12px;">
+      <div style="max-height:320px;overflow-y:auto;margin-top:12px;border:1px solid var(--border);border-radius:8px;">
       <table>
-        <thead><tr><th>เดือน</th><th style="text-align:right;">แผน DCA สะสม</th><th style="text-align:right;">ฝาก-ถอนจริงสะสม</th><th style="text-align:right;">ส่วนต่าง</th></tr></thead>
+        <thead style="position:sticky;top:0;background:var(--surface-1);"><tr><th>เดือน</th><th style="text-align:right;">DCA/เดือน</th><th style="text-align:right;">แผนสะสม</th><th style="text-align:right;">ฝาก-ถอนจริงสะสม</th><th style="text-align:right;">ส่วนต่าง</th></tr></thead>
         <tbody id="dca-body"></tbody>
       </table>
       </div>
@@ -450,13 +448,23 @@ function createEmptyPortfolio(id, name){
     id: id, name: name,
     transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, currentPricesForeign: {}, currencyOverrides: {}, snapshots: [],
     benchmarkComponents: [{id: 'b1', name: '', weight: 100}],
-    dcaPlan: {monthlyAmount: 0, startDate: '', months: 12},
+    dcaPlan: {startDate: '', tiers: [{id: 't1', months: 12, monthlyAmount: 0}]},
     targetAllocations: [],
     counters: {txId: 0, divId: 0, cashId: 0, snapId: 0, benchIdCounter: 1}
   };
 }
 
 /* migrate old single-portfolio data (before multi-portfolio support existed) */
+function migrateDcaPlan(plan){
+  if(!plan) return {startDate: '', tiers: [{id: 't1', months: 12, monthlyAmount: 0}]};
+  if(plan.tiers && plan.tiers.length) return plan; /* already the new shape */
+  /* old single-tier shape: {monthlyAmount, startDate, months} */
+  return {
+    startDate: plan.startDate || '',
+    tiers: [{id: 't1', months: plan.months || 12, monthlyAmount: plan.monthlyAmount || 0}]
+  };
+}
+
 function migrateFlatToPortfolios(flat){
   return {
     portfolios: [{
@@ -469,7 +477,7 @@ function migrateFlatToPortfolios(flat){
       currencyOverrides: flat.currencyOverrides || {},
       snapshots: flat.snapshots || [],
       benchmarkComponents: (flat.benchmarkComponents && flat.benchmarkComponents.length) ? flat.benchmarkComponents : [{id:'b1', name:'', weight:100}],
-      dcaPlan: flat.dcaPlan || {monthlyAmount: 0, startDate: '', months: 12},
+      dcaPlan: migrateDcaPlan(flat.dcaPlan),
       targetAllocations: flat.targetAllocations || [],
       counters: flat.counters || {txId:0, divId:0, cashId:0, snapId:0, benchIdCounter:1}
     }],
@@ -506,7 +514,7 @@ function loadActivePortfolio(){
   currencyOverrides = active.currencyOverrides || {};
   snapshots = active.snapshots || [];
   benchmarkComponents = (active.benchmarkComponents && active.benchmarkComponents.length) ? active.benchmarkComponents : [{id:'b1', name:'', weight:100}];
-  dcaPlan = active.dcaPlan || {monthlyAmount: 0, startDate: '', months: 12};
+  dcaPlan = migrateDcaPlan(active.dcaPlan);
   targetAllocations = active.targetAllocations || [];
   var c = active.counters || {};
   txId = c.txId || 0; divId = c.divId || 0; cashId = c.cashId || 0; snapId = c.snapId || 0; benchIdCounter = c.benchIdCounter || 1;
@@ -870,10 +878,19 @@ function getSymbolCurrency(sym){
 function computeHoldings(){
   var holdings = {};
   transactions.forEach(function(t){
-    if(!holdings[t.symbol]) holdings[t.symbol] = {qty:0, cost:0};
+    if(!holdings[t.symbol]) holdings[t.symbol] = {qty:0, cost:0, costUsd:0};
     var h = holdings[t.symbol];
-    if(t.type === 'buy'){ h.cost += t.qty * t.price; h.qty += t.qty; }
-    else { var avgCost = h.qty > 0 ? h.cost / h.qty : 0; h.cost -= avgCost * t.qty; h.qty -= t.qty; }
+    if(t.type === 'buy'){
+      h.cost += t.qty * t.price;
+      h.qty += t.qty;
+      if(t.currency === 'USD' && t.priceForeign){ h.costUsd += t.qty * t.priceForeign; }
+    } else {
+      var avgCost = h.qty > 0 ? h.cost / h.qty : 0;
+      var avgCostUsd = h.qty > 0 ? h.costUsd / h.qty : 0;
+      h.cost -= avgCost * t.qty;
+      h.costUsd -= avgCostUsd * t.qty;
+      h.qty -= t.qty;
+    }
   });
   return holdings;
 }
@@ -1020,23 +1037,34 @@ function addMonths(dateStr, n){
   return d;
 }
 function computeDCAPlan(){
-  if(!dcaPlan || !dcaPlan.startDate || !dcaPlan.monthlyAmount || !dcaPlan.months) return null;
+  if(!dcaPlan || !dcaPlan.startDate || !dcaPlan.tiers || !dcaPlan.tiers.length) return null;
+  var totalMonths = dcaPlan.tiers.reduce(function(s, t){ return s + (parseInt(t.months, 10) || 0); }, 0);
+  if(totalMonths <= 0) return null;
+  if(totalMonths > 600){ totalMonths = 600; } /* safety cap ~50 years in case of a mistyped huge value */
   var rows = [];
   var cumPlanned = 0;
-  for(var i = 0; i < dcaPlan.months; i++){
-    var monthStart = addMonths(dcaPlan.startDate, i);
-    var cutoff = addMonths(dcaPlan.startDate, i + 1);
-    var cutoffStr = cutoff.toISOString().slice(0, 10);
-    cumPlanned += dcaPlan.monthlyAmount;
-    var actualCum = cashFlows.filter(function(c){ return c.date < cutoffStr; })
-      .reduce(function(sum, c){ return sum + (c.type === 'deposit' ? c.amount : -c.amount); }, 0);
-    rows.push({
-      label: monthStart.toLocaleDateString('th-TH', {month: 'short', year: '2-digit'}),
-      planned: cumPlanned,
-      actual: actualCum,
-      diff: actualCum - cumPlanned
-    });
-  }
+  var monthIdx = 0;
+  dcaPlan.tiers.forEach(function(tier){
+    var tierMonths = parseInt(tier.months, 10) || 0;
+    var tierAmount = parseFloat(tier.monthlyAmount) || 0;
+    for(var j = 0; j < tierMonths; j++){
+      if(monthIdx >= totalMonths) return;
+      var monthStart = addMonths(dcaPlan.startDate, monthIdx);
+      var cutoff = addMonths(dcaPlan.startDate, monthIdx + 1);
+      var cutoffStr = cutoff.toISOString().slice(0, 10);
+      cumPlanned += tierAmount;
+      var actualCum = cashFlows.filter(function(c){ return c.date < cutoffStr; })
+        .reduce(function(sum, c){ return sum + (c.type === 'deposit' ? c.amount : -c.amount); }, 0);
+      rows.push({
+        label: monthStart.toLocaleDateString('th-TH', {month: 'short', year: '2-digit'}),
+        tierAmount: tierAmount,
+        planned: cumPlanned,
+        actual: actualCum,
+        diff: actualCum - cumPlanned
+      });
+      monthIdx++;
+    }
+  });
   return rows;
 }
 
@@ -1411,20 +1439,75 @@ document.getElementById('alloc-add-row').addEventListener('click', function(){
 });
 
 /* ---------- DCA plan form ---------- */
+var dcaTierIdCounter = 1;
+
 function populateDcaForm(){
-  var amountEl = document.getElementById('dca-amount');
   var startEl = document.getElementById('dca-start');
-  var monthsEl = document.getElementById('dca-months');
-  if(document.activeElement === amountEl || document.activeElement === startEl || document.activeElement === monthsEl){ return; }
-  amountEl.value = dcaPlan.monthlyAmount || '';
-  startEl.value = dcaPlan.startDate || '';
-  monthsEl.value = dcaPlan.months || '';
+  if(document.activeElement !== startEl){ startEl.value = dcaPlan.startDate || ''; }
+  renderDcaTierRows();
 }
+
+function renderDcaTierRows(){
+  var container = document.getElementById('dca-tier-rows');
+  var active = document.activeElement;
+  var restore = null;
+  if(active && container.contains(active) && active.tagName === 'INPUT'){
+    restore = {cls: active.classList.length ? active.classList[0] : '', id: active.getAttribute('data-id'), start: active.selectionStart, end: active.selectionEnd};
+  }
+  if(!dcaPlan.tiers || !dcaPlan.tiers.length){ dcaPlan.tiers = [{id: 't1', months: 12, monthlyAmount: 0}]; }
+  var tiers = dcaPlan.tiers;
+  container.innerHTML = tiers.map(function(t, i){
+    return '<div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;">' +
+      '<span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">ช่วงที่ ' + (i + 1) + '</span>' +
+      '<input type="number" class="dca-tier-months-input" data-id="' + t.id + '" min="1" step="1" placeholder="จำนวนเดือน" value="' + t.months + '" />' +
+      '<input type="number" class="dca-tier-amount-input" data-id="' + t.id + '" min="0" step="100" placeholder="บาท/เดือน" value="' + t.monthlyAmount + '" />' +
+      (tiers.length > 1 ? '<button type="button" class="dca-tier-remove-btn btn-secondary" data-id="' + t.id + '">ลบ</button>' : '<span></span>') +
+      '</div>';
+  }).join('');
+
+  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-months-input'), function(inp){
+    inp.addEventListener('input', function(){
+      var id = this.getAttribute('data-id');
+      var t = dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
+      if(t) t.months = parseInt(this.value, 10) || 0;
+      render();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-amount-input'), function(inp){
+    inp.addEventListener('input', function(){
+      var id = this.getAttribute('data-id');
+      var t = dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
+      if(t) t.monthlyAmount = parseFloat(this.value) || 0;
+      render();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-remove-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      var id = this.getAttribute('data-id');
+      dcaPlan.tiers = dcaPlan.tiers.filter(function(x){ return x.id !== id; });
+      renderDcaTierRows();
+      render();
+    });
+  });
+
+  if(restore && restore.cls){
+    var newEl = container.querySelector('.' + restore.cls + '[data-id="' + restore.id + '"]');
+    if(newEl){
+      newEl.focus();
+      if(typeof newEl.setSelectionRange === 'function'){ try{ newEl.setSelectionRange(restore.start, restore.end); }catch(e){} }
+    }
+  }
+}
+
+document.getElementById('dca-add-tier').addEventListener('click', function(){
+  if(!dcaPlan.tiers){ dcaPlan.tiers = []; }
+  dcaTierIdCounter++;
+  dcaPlan.tiers.push({id: 't' + dcaTierIdCounter, months: 6, monthlyAmount: 0});
+  renderDcaTierRows();
+});
+
 document.getElementById('dca-save').addEventListener('click', function(){
-  var amount = parseFloat(document.getElementById('dca-amount').value) || 0;
-  var start = document.getElementById('dca-start').value;
-  var months = parseInt(document.getElementById('dca-months').value, 10) || 0;
-  dcaPlan = {monthlyAmount: amount, startDate: start, months: months};
+  dcaPlan.startDate = document.getElementById('dca-start').value;
   render();
 });
 
@@ -1507,10 +1590,17 @@ function render(){
       priceCell = '<div style="display:flex;gap:4px;justify-content:flex-end;"><input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:80px;text-align:right;" /><button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + escapeHtml(sym) + '.BK)">🔄</button></div>';
     }
 
+    var avgCostUsd = (isUsd && h.costUsd > 0) ? h.costUsd / h.qty : null;
+    var avgCostCell = fmt(avgCost);
+    if(avgCostUsd){
+      var impliedFx = avgCostUsd > 0 ? avgCost / avgCostUsd : 0;
+      avgCostCell += '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(avgCostUsd) + ' @ ' + fmt(impliedFx) + ')</span>';
+    }
+
     rows += '<tr>' +
       '<td style="font-weight:500;">' + escapeHtml(sym) + ' <select class="currency-override-select" data-symbol="' + escapeAttr(sym) + '" style="width:auto;padding:1px 4px;font-size:10px;display:inline-block;' + (isUsd ? 'color:var(--text-accent);border-color:var(--text-accent);' : 'color:var(--text-muted);') + '"><option value="THB"' + (isUsd ? '' : ' selected') + '>บาท</option><option value="USD"' + (isUsd ? ' selected' : '') + '>USD</option></select></td>' +
       '<td style="text-align:right;">' + fmt(h.qty) + '</td>' +
-      '<td style="text-align:right;">' + fmt(avgCost) + '</td>' +
+      '<td style="text-align:right;">' + avgCostCell + '</td>' +
       '<td style="text-align:right;">' + fmt(breakeven) + '</td>' +
       '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(value) + '</td>' +
@@ -1570,7 +1660,7 @@ function render(){
       '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty * t.price) + '</td>' +
       '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (t.note ? escapeAttr(t.note) : '') + '">' + noteText + '</td>' +
-      '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="tx" data-id="' + t.id + '">ลบ</button></td>' +
+      '<td style="text-align:right;white-space:nowrap;"><button type="button" class="edit-tx-btn btn-secondary" data-id="' + t.id + '" style="font-size:12px;padding:4px 8px;margin-right:4px;">แก้ไข</button><button type="button" class="del-btn btn-del" data-store="tx" data-id="' + t.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
   document.getElementById('tx-body').innerHTML = txRows || '<tr><td colspan="8" style="color:var(--text-muted);">ยังไม่มีประวัติธุรกรรม</td></tr>';
@@ -1704,6 +1794,7 @@ function render(){
     document.getElementById('dca-body').innerHTML = dcaRows.map(function(row){
       return '<tr>' +
         '<td style="color:var(--text-secondary);">' + row.label + '</td>' +
+        '<td style="text-align:right;">' + fmt(row.tierAmount) + '</td>' +
         '<td style="text-align:right;">' + fmt(row.planned) + '</td>' +
         '<td style="text-align:right;">' + fmt(row.actual) + '</td>' +
         '<td style="text-align:right;color:' + (row.diff >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + (row.diff>=0?'+':'') + fmt(row.diff) + '</td>' +
@@ -1745,7 +1836,7 @@ function render(){
         '</div>';
     })();
   } else {
-    document.getElementById('dca-body').innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);">กรอกแผน DCA (จำนวนต่อเดือน, เดือนเริ่มต้น, ระยะเวลา) แล้วกด "บันทึกแผน" เพื่อดูตาราง</td></tr>';
+    document.getElementById('dca-body').innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);">กรอกเดือนเริ่มต้นและอย่างน้อย 1 ช่วงแผน (จำนวนเดือน + บาท/เดือน) แล้วกด "บันทึกแผน" เพื่อดูตาราง</td></tr>';
     document.getElementById('dca-chart-container').innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่ได้ตั้งแผน DCA</p>';
   }
 
@@ -1805,7 +1896,7 @@ function render(){
     var stockSel = document.getElementById('pc-stock-select');
     var prevStock = stockSel.value;
     var symbols = Object.keys(holdings).filter(function(s){ return holdings[s].qty > 0.0001; });
-    stockSel.innerHTML = symbols.map(function(s){ return '<option value="' + s + '">' + s + '</option>'; }).join('') || '<option value="">(ไม่มีหุ้นในพอร์ต)</option>';
+    stockSel.innerHTML = symbols.map(function(s){ return '<option value="' + escapeAttr(s) + '">' + escapeHtml(s) + '</option>'; }).join('') || '<option value="">(ไม่มีหุ้นในพอร์ต)</option>';
     if(symbols.indexOf(prevStock) !== -1){ stockSel.value = prevStock; }
 
     var benchSel = document.getElementById('pc-bench-select');
@@ -1847,7 +1938,7 @@ document.getElementById('pc-load-btn').addEventListener('click', function(){
   }
 
   var fetches = [];
-  fetches.push(stockSym ? fetchYahooHistory(stockSym + '.BK', range).catch(function(){ return null; }) : Promise.resolve(null));
+  fetches.push(stockSym ? fetchYahooHistory(getSymbolCurrency(stockSym) === 'USD' ? stockSym : stockSym + '.BK', range).catch(function(){ return null; }) : Promise.resolve(null));
   fetches.push(benchSym ? fetchYahooHistory(benchSym, range).catch(function(){ return null; }) : Promise.resolve(null));
 
   Promise.all(fetches).then(function(results){
@@ -1899,6 +1990,51 @@ document.getElementById('t-fx-fetch').addEventListener('click', function(){
   });
 });
 
+var editingTxId = null;
+
+function resetTxForm(){
+  editingTxId = null;
+  document.getElementById('t-symbol').value = '';
+  document.getElementById('t-symbol').disabled = false;
+  document.getElementById('t-qty').value = '';
+  document.getElementById('t-price').value = '';
+  document.getElementById('t-price-usd').value = '';
+  document.getElementById('t-fx-rate').value = '';
+  document.getElementById('t-date').value = '';
+  document.getElementById('t-note').value = '';
+  document.getElementById('t-currency').value = 'THB';
+  document.getElementById('t-currency').dispatchEvent(new Event('change'));
+  document.getElementById('t-add').textContent = '+ เพิ่ม';
+  document.getElementById('t-cancel-edit').style.display = 'none';
+}
+
+document.getElementById('t-cancel-edit').addEventListener('click', resetTxForm);
+
+document.addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.edit-tx-btn') : null;
+  if(!btn) return;
+  var id = btn.getAttribute('data-id');
+  var t = transactions.filter(function(x){ return x.id === id; })[0];
+  if(!t) return;
+  editingTxId = id;
+  document.getElementById('t-symbol').value = t.symbol;
+  document.getElementById('t-type').value = t.type;
+  document.getElementById('t-currency').value = t.currency === 'USD' ? 'USD' : 'THB';
+  document.getElementById('t-currency').dispatchEvent(new Event('change'));
+  document.getElementById('t-qty').value = t.qty;
+  if(t.currency === 'USD'){
+    document.getElementById('t-price-usd').value = t.priceForeign || '';
+    document.getElementById('t-fx-rate').value = t.fxRate || '';
+  } else {
+    document.getElementById('t-price').value = t.price;
+  }
+  document.getElementById('t-date').value = t.date;
+  document.getElementById('t-note').value = t.note || '';
+  document.getElementById('t-add').textContent = 'บันทึกการแก้ไข';
+  document.getElementById('t-cancel-edit').style.display = 'inline-block';
+  document.getElementById('t-symbol').scrollIntoView({behavior:'smooth', block:'center'});
+});
+
 document.getElementById('t-add').addEventListener('click', function(){
   var symbol = document.getElementById('t-symbol').value.trim().toUpperCase();
   var type = document.getElementById('t-type').value;
@@ -1918,18 +2054,23 @@ document.getElementById('t-add').addEventListener('click', function(){
   }
 
   if(!symbol || !qty || !price || qty <= 0 || price <= 0 || !date) return;
-  txId++;
-  var record = {id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note, currency:currency};
-  if(currency === 'USD'){ record.priceForeign = priceForeign; record.fxRate = fxRate; }
-  transactions.push(record);
 
-  document.getElementById('t-symbol').value = '';
-  document.getElementById('t-qty').value = '';
-  document.getElementById('t-price').value = '';
-  document.getElementById('t-price-usd').value = '';
-  document.getElementById('t-fx-rate').value = '';
-  document.getElementById('t-date').value = '';
-  document.getElementById('t-note').value = '';
+  if(editingTxId){
+    var existing = transactions.filter(function(x){ return x.id === editingTxId; })[0];
+    if(existing){
+      existing.symbol = symbol; existing.type = type; existing.qty = qty; existing.price = price;
+      existing.date = date; existing.note = note; existing.currency = currency;
+      if(currency === 'USD'){ existing.priceForeign = priceForeign; existing.fxRate = fxRate; }
+      else { delete existing.priceForeign; delete existing.fxRate; }
+    }
+  } else {
+    txId++;
+    var record = {id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note, currency:currency};
+    if(currency === 'USD'){ record.priceForeign = priceForeign; record.fxRate = fxRate; }
+    transactions.push(record);
+  }
+
+  resetTxForm();
   render();
 });
 
