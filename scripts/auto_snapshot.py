@@ -71,9 +71,23 @@ def get_symbol_currency(transactions, sym, overrides=None):
     return "USD" if latest and latest.get("currency") == "USD" else "THB"
 
 
+def compute_cash_balance(transactions, cash_flows):
+    """Mirror the frontend's computeCashBalanceAsOf (as of today, since this script always
+    values the portfolio as of 'now'). Dividends are intentionally excluded — they're already
+    treated as leaving the tracked value immediately for TWRR purposes, so including them here
+    too would double-count."""
+    balance = 0.0
+    for c in cash_flows:
+        balance += c["amount"] if c["type"] == "deposit" else -c["amount"]
+    for t in transactions:
+        balance += (-1 if t["type"] == "buy" else 1) * t["qty"] * t["price"]
+    return balance
+
+
 updated_portfolios = []
 for portfolio in data["portfolios"]:
     transactions = portfolio.get("transactions", [])
+    cash_flows = portfolio.get("cashFlows", [])
     benchmark_components = portfolio.get("benchmarkComponents", [])
 
     # recompute current holdings from the full transaction history
@@ -110,6 +124,8 @@ for portfolio in data["portfolios"]:
             price = get_price(sym + ".BK") or fallback_price
         current_prices[sym] = round(price, 2)
         total_value += h["qty"] * price
+
+    total_value += compute_cash_balance(transactions, cash_flows)
 
     bench_values = {}
     for b in benchmark_components:
