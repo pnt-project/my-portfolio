@@ -895,6 +895,19 @@ function computeHoldings(){
   return holdings;
 }
 
+function computeCashBalanceAsOf(date){
+  var balance = 0;
+  cashFlows.forEach(function(c){
+    if(c.date <= date){ balance += (c.type === 'deposit' ? 1 : -1) * c.amount; }
+  });
+  transactions.forEach(function(t){
+    if(t.date <= date){ balance += (t.type === 'buy' ? -1 : 1) * t.qty * t.price; }
+  });
+  return balance; /* dividends are intentionally excluded here — they're already treated
+    as leaving the tracked value immediately in cfInRange, consistent with the
+    Total Return treatment used for TWRR. Including them here too would double-count. */
+}
+
 function computeHoldingsAsOf(date){
   var holdings = {};
   transactions.forEach(function(t){
@@ -912,7 +925,7 @@ function computeHoldingsAsOf(date){
     var price = currentPrices[sym] !== undefined ? currentPrices[sym] : avgCost;
     total += h.qty * price;
   });
-  return total;
+  return total + computeCashBalanceAsOf(date);
 }
 
 function cfInRange(prevDate, currDate, incDiv){
@@ -2266,13 +2279,14 @@ function renderAutoPriceBanner(data){
         total += h.qty * price;
       }
     });
+    var todayStr = new Date().toISOString().slice(0, 10);
+    total += computeCashBalanceAsOf(todayStr);
     var benchValues = {};
     benchmarkComponents.forEach(function(b){
       if(b.symbol && data.benchmarks && data.benchmarks[b.symbol] !== undefined){
         benchValues[b.id] = data.benchmarks[b.symbol];
       }
     });
-    var todayStr = new Date().toISOString().slice(0, 10);
     snapId++;
     snapshots.push({id: 'snap' + snapId, date: todayStr, value: total, benchValues: benchValues, source: 'manual', createdAt: new Date().toISOString()});
     render();
