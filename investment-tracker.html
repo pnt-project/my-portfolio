@@ -273,8 +273,8 @@
       <p class="panel-sub">ดึงข้อมูลราคาย้อนหลังสดจาก Yahoo Finance (ผ่าน CORS proxy เดียวกับปุ่มดึงราคา) แสดงเป็น % เปลี่ยนแปลงเทียบจากจุดเริ่มต้นช่วงที่เลือก</p>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:end;">
         <div>
-          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">หุ้น</label>
-          <select id="pc-stock-select" style="min-width:140px;"></select>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">หุ้น (เลือกได้หลายตัว)</label>
+          <div id="pc-stock-checks" style="display:flex;flex-wrap:wrap;gap:4px 12px;max-width:320px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);min-height:36px;align-items:center;"></div>
         </div>
         <div>
           <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">Benchmark</label>
@@ -326,7 +326,7 @@
       <div id="dca-chart-container"></div>
       <div style="max-height:320px;overflow-y:auto;margin-top:12px;border:1px solid var(--border);border-radius:8px;">
       <table>
-        <thead style="position:sticky;top:0;background:var(--surface-1);"><tr><th>เดือน</th><th style="text-align:right;">DCA/เดือน</th><th style="text-align:right;">แผนสะสม</th><th style="text-align:right;">ฝาก-ถอนจริงสะสม</th><th style="text-align:right;">ส่วนต่าง</th></tr></thead>
+        <thead style="position:sticky;top:0;background:var(--surface-1);"><tr><th>เดือน</th><th style="text-align:right;">DCA/เดือน</th><th style="text-align:right;">แผนสะสม</th><th style="text-align:right;">ฝาก-ถอนจริงสะสม</th><th style="text-align:right;">มูลค่าพอร์ตจริง</th><th style="text-align:right;">ส่วนต่าง</th></tr></thead>
         <tbody id="dca-body"></tbody>
       </table>
       </div>
@@ -847,6 +847,9 @@ document.getElementById('clear-data').addEventListener('click', function(){
 function fmt(n){
   return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
+function fmt4(n){
+  return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:4});
+}
 function fmtPct(n){
   var v = Number(n||0) * 100;
   return (v>=0?'+':'') + v.toFixed(2) + '%';
@@ -1068,11 +1071,14 @@ function computeDCAPlan(){
       cumPlanned += tierAmount;
       var actualCum = cashFlows.filter(function(c){ return c.date < cutoffStr; })
         .reduce(function(sum, c){ return sum + (c.type === 'deposit' ? c.amount : -c.amount); }, 0);
+      var priorSnapshots = snapshots.filter(function(s){ return s.date < cutoffStr; }).sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+      var portfolioValue = priorSnapshots.length ? priorSnapshots[0].value : null;
       rows.push({
         label: monthStart.toLocaleDateString('th-TH', {month: 'short', year: '2-digit'}),
         tierAmount: tierAmount,
         planned: cumPlanned,
         actual: actualCum,
+        portfolioValue: portfolioValue,
         diff: actualCum - cumPlanned
       });
       monthIdx++;
@@ -1579,6 +1585,7 @@ function render(){
     var value = h.qty * curPrice;
     var pnl = value - h.cost + divRecv;
     var pnlColor = pnl >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    var pnlPercent = h.cost > 0 ? (pnl / h.cost) * 100 : 0;
 
     totalInvested += h.cost;
     totalValue += value;
@@ -1617,7 +1624,7 @@ function render(){
       '<td style="text-align:right;">' + fmt(breakeven) + '</td>' +
       '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(value) + '</td>' +
-      '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '</td>' +
+      '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '<br /><span style="font-size:11px;font-weight:400;">(' + (pnlPercent>=0?'+':'') + pnlPercent.toFixed(2) + '%)</span></td>' +
       '</tr>';
   });
 
@@ -1781,7 +1788,7 @@ function render(){
     var nav = navByDate[s.date];
     var benchCells = benchmarkComponents.map(function(b){
       var v = s.benchValues ? s.benchValues[b.id] : undefined;
-      return '<td style="text-align:right;">' + (v !== undefined && v !== null ? fmt(v) : '<span style="color:var(--text-muted);">-</span>') + '</td>';
+      return '<td style="text-align:right;">' + (v !== undefined && v !== null ? fmt4(v) : '<span style="color:var(--text-muted);">-</span>') + '</td>';
     }).join('');
     var isAuto = s.source === 'auto';
     var timeStr = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'}) : '';
@@ -1810,6 +1817,7 @@ function render(){
         '<td style="text-align:right;">' + fmt(row.tierAmount) + '</td>' +
         '<td style="text-align:right;">' + fmt(row.planned) + '</td>' +
         '<td style="text-align:right;">' + fmt(row.actual) + '</td>' +
+        '<td style="text-align:right;">' + (row.portfolioValue !== null ? fmt(row.portfolioValue) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
         '<td style="text-align:right;color:' + (row.diff >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + (row.diff>=0?'+':'') + fmt(row.diff) + '</td>' +
         '</tr>';
     }).join('');
@@ -1819,7 +1827,7 @@ function render(){
       var container = document.getElementById('dca-chart-container');
       var w = 680, h = 260, padL = 60, padR = 15, padT = 15, padB = 30;
       var allVals = [];
-      dcaRows.forEach(function(r){ allVals.push(r.planned); allVals.push(r.actual); });
+      dcaRows.forEach(function(r){ allVals.push(r.planned); allVals.push(r.actual); if(r.portfolioValue !== null){ allVals.push(r.portfolioValue); } });
       var maxV = Math.max.apply(null, allVals.concat([0]));
       var minV = Math.min.apply(null, allVals.concat([0]));
       if(maxV === minV){ maxV += 1; }
@@ -1838,18 +1846,21 @@ function render(){
       var xLabels = labelIdxs.map(function(i){ return '<text x="' + xPos(i) + '" y="' + (h - padB + 18) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle">' + dcaRows[i].label + '</text>'; }).join('');
       var plannedPts = dcaRows.map(function(r,i){ return xPos(i) + ',' + yPos(r.planned); }).join(' ');
       var actualPts = dcaRows.map(function(r,i){ return xPos(i) + ',' + yPos(r.actual); }).join(' ');
+      var valuePts = dcaRows.map(function(r,i){ return r.portfolioValue !== null ? (xPos(i) + ',' + yPos(r.portfolioValue)) : null; }).filter(function(p){ return p !== null; }).join(' ');
       var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' + gridLines +
         '<polyline points="' + plannedPts + '" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-dasharray="5,4" />' +
         '<polyline points="' + actualPts + '" fill="none" stroke="var(--text-accent)" stroke-width="2.5" />' +
+        (valuePts ? '<polyline points="' + valuePts + '" fill="none" stroke="var(--text-success)" stroke-width="2.5" />' : '') +
         xLabels + '</svg>';
       container.innerHTML = svg +
         '<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">' +
         '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-accent);display:inline-block;"></span>ฝาก-ถอนจริงสะสม</span>' +
         '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span>แผน DCA สะสม</span>' +
+        '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-success);display:inline-block;"></span>มูลค่าพอร์ตจริง</span>' +
         '</div>';
     })();
   } else {
-    document.getElementById('dca-body').innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);">กรอกเดือนเริ่มต้นและอย่างน้อย 1 ช่วงแผน (จำนวนเดือน + บาท/เดือน) แล้วกด "บันทึกแผน" เพื่อดูตาราง</td></tr>';
+    document.getElementById('dca-body').innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);">กรอกเดือนเริ่มต้นและอย่างน้อย 1 ช่วงแผน (จำนวนเดือน + บาท/เดือน) แล้วกด "บันทึกแผน" เพื่อดูตาราง</td></tr>';
     document.getElementById('dca-chart-container').innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่ได้ตั้งแผน DCA</p>';
   }
 
@@ -1906,11 +1917,16 @@ function render(){
 
   /* ---------- price-compare stock/benchmark selectors ---------- */
   (function(){
-    var stockSel = document.getElementById('pc-stock-select');
-    var prevStock = stockSel.value;
+    var checksContainer = document.getElementById('pc-stock-checks');
+    var isFirstRender = checksContainer.children.length === 0;
+    var prevChecked = Array.prototype.map.call(checksContainer.querySelectorAll('input:checked'), function(el){ return el.value; });
     var symbols = Object.keys(holdings).filter(function(s){ return holdings[s].qty > 0.0001; });
-    stockSel.innerHTML = symbols.map(function(s){ return '<option value="' + escapeAttr(s) + '">' + escapeHtml(s) + '</option>'; }).join('') || '<option value="">(ไม่มีหุ้นในพอร์ต)</option>';
-    if(symbols.indexOf(prevStock) !== -1){ stockSel.value = prevStock; }
+    checksContainer.innerHTML = symbols.length ? symbols.map(function(s){
+      var checked = isFirstRender ? (symbols.indexOf(s) === 0) : (prevChecked.indexOf(s) !== -1);
+      return '<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">' +
+        '<input type="checkbox" class="pc-stock-check" value="' + escapeAttr(s) + '"' + (checked ? ' checked' : '') + ' />' +
+        escapeHtml(s) + '</label>';
+    }).join('') : '<span style="font-size:13px;color:var(--text-muted);">(ไม่มีหุ้นในพอร์ต)</span>';
 
     var benchSel = document.getElementById('pc-bench-select');
     var prevBench = benchSel.value;
@@ -1928,13 +1944,13 @@ document.getElementById('include-dividends-toggle').addEventListener('change', f
 });
 
 document.getElementById('pc-load-btn').addEventListener('click', function(){
-  var stockSym = document.getElementById('pc-stock-select').value;
+  var stockSyms = Array.prototype.map.call(document.querySelectorAll('.pc-stock-check:checked'), function(el){ return el.value; });
   var benchSym = document.getElementById('pc-bench-select').value;
   var range = document.getElementById('pc-range-select').value;
   var legend = document.getElementById('pc-legend');
   var container = document.getElementById('pc-chart-container');
-  if(!stockSym && !benchSym){
-    container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">เลือกหุ้นหรือ Benchmark อย่างน้อยหนึ่งอย่าง</p>';
+  if(!stockSyms.length && !benchSym){
+    container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">เลือกหุ้นอย่างน้อย 1 ตัว หรือ Benchmark</p>';
     legend.innerHTML = '';
     return;
   }
@@ -1950,30 +1966,43 @@ document.getElementById('pc-load-btn').addEventListener('click', function(){
     return points.map(function(p){ return {date: p.date, pct: (p.close - base) / base}; });
   }
 
-  var fetches = [];
-  fetches.push(stockSym ? fetchYahooHistory(getSymbolCurrency(stockSym) === 'USD' ? stockSym : stockSym + '.BK', range).catch(function(){ return null; }) : Promise.resolve(null));
-  fetches.push(benchSym ? fetchYahooHistory(benchSym, range).catch(function(){ return null; }) : Promise.resolve(null));
+  var stockFetches = stockSyms.map(function(sym){
+    var ticker = getSymbolCurrency(sym) === 'USD' ? sym : sym + '.BK';
+    return fetchYahooHistory(ticker, range).catch(function(){ return null; });
+  });
+  var benchFetch = benchSym ? fetchYahooHistory(benchSym, range).catch(function(){ return null; }) : Promise.resolve(null);
 
-  Promise.all(fetches).then(function(results){
-    var stockPoints = results[0], benchPoints = results[1];
+  Promise.all(stockFetches.concat([benchFetch])).then(function(results){
+    var benchPoints = results[results.length - 1];
+    var stockResults = results.slice(0, results.length - 1);
     var series = [];
     var legendHtml = '';
-    if(stockPoints){
-      series.push({points: toPctSeries(stockPoints), color: 'var(--text-accent)', dash: false});
-      legendHtml += '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-accent);display:inline-block;"></span>' + escapeHtml(stockSym) + '</span>';
-    }
+    var failedStocks = [];
+
+    stockResults.forEach(function(points, i){
+      var sym = stockSyms[i];
+      if(points){
+        var color = DONUT_COLORS[i % DONUT_COLORS.length];
+        series.push({points: toPctSeries(points), color: color, dash: false});
+        legendHtml += '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:' + color + ';display:inline-block;"></span>' + escapeHtml(sym) + '</span>';
+      } else {
+        failedStocks.push(sym);
+      }
+    });
+
     if(benchPoints){
       var benchLabel = (benchmarkComponents.filter(function(b){ return b.symbol === benchSym; })[0] || {}).name || benchSym;
       series.push({points: toPctSeries(benchPoints), color: 'var(--text-secondary)', dash: true});
       legendHtml += '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span>' + escapeHtml(benchLabel) + '</span>';
     }
+
     if(!series.length){
-      container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ดึงข้อมูลไม่สำเร็จทั้งสองตัว (proxy อาจล่มชั่วคราว ลองใหม่อีกครั้ง)</p>';
+      container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ดึงข้อมูลไม่สำเร็จทั้งหมด (proxy อาจล่มชั่วคราว ลองใหม่อีกครั้ง)</p>';
       legend.innerHTML = '';
     } else {
       renderTimeSeriesChart('pc-chart-container', series);
       legend.innerHTML = legendHtml;
-      if(!stockPoints && stockSym){ legend.innerHTML += '<span style="font-size:12px;color:var(--text-danger);">(ดึงราคาหุ้น ' + escapeHtml(stockSym) + ' ไม่สำเร็จ)</span>'; }
+      if(failedStocks.length){ legend.innerHTML += '<span style="font-size:12px;color:var(--text-danger);">(ดึงราคาหุ้น ' + escapeHtml(failedStocks.join(', ')) + ' ไม่สำเร็จ)</span>'; }
       if(!benchPoints && benchSym){ legend.innerHTML += '<span style="font-size:12px;color:var(--text-danger);">(ดึงราคา Benchmark ไม่สำเร็จ)</span>'; }
     }
   }).finally(function(){
