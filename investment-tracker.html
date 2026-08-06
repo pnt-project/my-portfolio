@@ -142,10 +142,28 @@
 
 <div id="auto-price-banner" class="panel" style="display:none;background:var(--bg-accent);"></div>
 
+<div class="panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+  <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">💵 อัตราแลกเปลี่ยนอ้างอิง (USD/THB) สำหรับแปลงมูลค่าปัจจุบันเป็น USD:</span>
+  <input id="ref-fx-input" type="number" min="0" step="0.0001" placeholder="เช่น 35.20" style="max-width:130px;" />
+  <button id="ref-fx-fetch" type="button" class="btn-secondary">ดึงอัตราล่าสุด</button>
+</div>
+
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:1.25rem;">
-  <div class="metric-card"><p class="metric-label">เงินลงทุนสุทธิ</p><p class="metric-value" id="m-invested">0</p></div>
-  <div class="metric-card"><p class="metric-label">มูลค่าตลาดปัจจุบัน</p><p class="metric-value" id="m-value">0</p></div>
-  <div class="metric-card"><p class="metric-label">กำไร/ขาดทุน</p><p class="metric-value" id="m-pnl">0</p></div>
+  <div class="metric-card">
+    <p class="metric-label">เงินลงทุนสุทธิ</p>
+    <p class="metric-value" id="m-invested">0</p>
+    <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;" id="m-invested-usd"></p>
+  </div>
+  <div class="metric-card">
+    <p class="metric-label">มูลค่าตลาดปัจจุบัน</p>
+    <p class="metric-value" id="m-value">0</p>
+    <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;" id="m-value-usd"></p>
+  </div>
+  <div class="metric-card">
+    <p class="metric-label">กำไร/ขาดทุน</p>
+    <p class="metric-value" id="m-pnl">0</p>
+    <p style="font-size:11px;color:var(--text-muted);margin:4px 0 0;" id="m-pnl-usd"></p>
+  </div>
   <div class="metric-card"><p class="metric-label">เงินปันผลสะสม</p><p class="metric-value" id="m-div">0</p></div>
   <div class="metric-card"><p class="metric-label">เงินฝาก-ถอนสุทธิ</p><p class="metric-value" id="m-netcash">0</p></div>
 </div>
@@ -230,6 +248,13 @@
         </div>
       </div>
       <button id="s-pull" type="button" class="btn-secondary" style="width:100%;margin-bottom:10px;">ดึงมูลค่าจากพอร์ต</button>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px;align-items:end;">
+        <div>
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">อัตราแลกเปลี่ยน USD/THB ณ วันนี้ (ไม่บังคับ — ใส่เพื่อดู TWRR/NAV เป็น USD)</label>
+          <input id="s-fx-rate" type="number" min="0" step="0.0001" placeholder="เช่น 35.20" style="width:100%;" />
+        </div>
+        <button id="s-fx-fetch" type="button" class="btn-secondary" style="white-space:nowrap;">ดึงอัตรา</button>
+      </div>
       <div id="bench-value-inputs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;"></div>
       <button id="s-add" style="width:100%;">+ เพิ่ม Snapshot</button>
       <p class="panel-sub" style="margin-top:10px;margin-bottom:0;">Benchmark ตัวไหนไม่มีข้อมูลวันนั้นเว้นว่างได้ ไม่บังคับกรอกครบ</p>
@@ -254,12 +279,17 @@
       <div class="metric-card"><p class="metric-label">NAV พอร์ต (ฐาน 100)</p><p class="metric-value" id="m-nav-port">-</p></div>
       <div class="metric-card"><p class="metric-label">NAV Benchmark (ฐาน 100)</p><p class="metric-value" id="m-nav-bench">-</p></div>
       <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
+      <div class="metric-card"><p class="metric-label">TWRR สะสม (USD)</p><p class="metric-value" id="m-twrr-usd">-</p></div>
+      <div class="metric-card"><p class="metric-label">NAV พอร์ต (USD, ฐาน 100)</p><p class="metric-value" id="m-nav-port-usd">-</p></div>
     </div>
 
     <div class="panel">
       <p class="panel-title">📈 ผลตอบแทนสะสม (%) เทียบ Benchmark</p>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
         <input type="checkbox" id="include-dividends-toggle" checked style="width:auto;" /> รวมเงินปันผลในผลตอบแทน (Total Return) — ยกเลิกติ๊กเพื่อดูเฉพาะผลตอบแทนจากราคา (Price Return)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="chart-usd-toggle" style="width:auto;" /> แสดงกราฟเป็น USD แทนบาท (ใช้ได้เฉพาะช่วงที่ Snapshot มีอัตราแลกเปลี่ยนบันทึกไว้)
       </label>
       <div id="chart-container"></div>
       <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
@@ -429,6 +459,9 @@ var currentPrices = {};
 var currentPricesForeign = {}; /* {SYMBOL: {priceUSD, fxRate}} — for USD-denominated holdings (e.g. foreign ETFs) */
 var currencyOverrides = {}; /* {SYMBOL: 'USD'|'THB'} — manual override, e.g. for symbols whose existing
   transactions predate the USD feature and so aren't auto-detected as USD from transaction history */
+var referenceFxRate = null; /* THB per 1 USD — used to convert current-moment totals (invested, market
+  value, P&L) into a USD view. Historical USD views (TWRR/NAV/Snapshot table) instead use each
+  Snapshot's own recorded fxRateUsd, since the reference rate here is only a "right now" snapshot. */
 var snapshots = [];
 var benchmarkComponents = [{id:'b1', name:'', weight:100}];
 var benchIdCounter = 1;
@@ -446,7 +479,7 @@ var portfolioIdCounter = 1;
 function createEmptyPortfolio(id, name){
   return {
     id: id, name: name,
-    transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, currentPricesForeign: {}, currencyOverrides: {}, snapshots: [],
+    transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, currentPricesForeign: {}, currencyOverrides: {}, referenceFxRate: null, snapshots: [],
     benchmarkComponents: [{id: 'b1', name: '', weight: 100}],
     dcaPlan: {startDate: '', tiers: [{id: 't1', months: 12, monthlyAmount: 0}]},
     targetAllocations: [],
@@ -475,6 +508,7 @@ function migrateFlatToPortfolios(flat){
       currentPrices: flat.currentPrices || {},
       currentPricesForeign: flat.currentPricesForeign || {},
       currencyOverrides: flat.currencyOverrides || {},
+      referenceFxRate: flat.referenceFxRate || null,
       snapshots: flat.snapshots || [],
       benchmarkComponents: (flat.benchmarkComponents && flat.benchmarkComponents.length) ? flat.benchmarkComponents : [{id:'b1', name:'', weight:100}],
       dcaPlan: migrateDcaPlan(flat.dcaPlan),
@@ -495,6 +529,7 @@ function syncGlobalsToActivePortfolio(){
   active.currentPrices = currentPrices;
   active.currentPricesForeign = currentPricesForeign;
   active.currencyOverrides = currencyOverrides;
+  active.referenceFxRate = referenceFxRate;
   active.snapshots = snapshots;
   active.benchmarkComponents = benchmarkComponents;
   active.dcaPlan = dcaPlan;
@@ -512,6 +547,7 @@ function loadActivePortfolio(){
   currentPrices = active.currentPrices || {};
   currentPricesForeign = active.currentPricesForeign || {};
   currencyOverrides = active.currencyOverrides || {};
+  referenceFxRate = active.referenceFxRate || null;
   snapshots = active.snapshots || [];
   benchmarkComponents = (active.benchmarkComponents && active.benchmarkComponents.length) ? active.benchmarkComponents : [{id:'b1', name:'', weight:100}];
   dcaPlan = migrateDcaPlan(active.dcaPlan);
@@ -979,6 +1015,43 @@ function computeSeries(startDate, endDate, incDiv){
     benchFactor *= (1 + rb);
     series.push({date: curr.date, twrrCum: twrrFactor - 1, benchCum: benchFactor - 1});
     rows.push({period: prev.date + ' → ' + curr.date, cf: cf, r: r, rb: rb});
+  }
+  return {series: series, rows: rows, twrr: twrrFactor - 1, bench: benchFactor - 1};
+}
+
+/* USD-denominated TWRR: only usable for snapshots that have a recorded fxRateUsd (captured when
+   the snapshot was created via the FX fetch button, or by auto_snapshot.py). Cash flows within a
+   period are converted using that period's ENDING snapshot's fx rate as a practical approximation,
+   since we don't track a historical fx rate for every individual transaction/cash-flow event. */
+function computeSeriesUsd(startDate, endDate, incDiv){
+  if(incDiv === undefined){ incDiv = true; }
+  var filtered = snapshots.filter(function(s){
+    return s.fxRateUsd && s.fxRateUsd > 0 && (!startDate || s.date >= startDate) && (!endDate || s.date <= endDate);
+  }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  if(filtered.length < 2) return null;
+  var totalWeight = benchmarkComponents.reduce(function(s,b){ return s + (parseFloat(b.weight)||0); }, 0) || 100;
+  var twrrFactor = 1, benchFactor = 1;
+  var series = [{date: filtered[0].date, twrrCum: 0, benchCum: 0}];
+  var rows = [];
+  for(var i=1; i<filtered.length; i++){
+    var prev = filtered[i-1], curr = filtered[i];
+    var prevValueUsd = prev.value / prev.fxRateUsd;
+    var currValueUsd = curr.value / curr.fxRateUsd;
+    var cfUsd = cfInRange(prev.date, curr.date, incDiv) / curr.fxRateUsd;
+    var r = prevValueUsd > 0 ? (currValueUsd - cfUsd - prevValueUsd) / prevValueUsd : 0;
+    var rb = 0;
+    benchmarkComponents.forEach(function(b){
+      var pv = prev.benchValues ? prev.benchValues[b.id] : undefined;
+      var cv = curr.benchValues ? curr.benchValues[b.id] : undefined;
+      if(pv && cv && pv > 0){
+        var compR = (cv - pv) / pv;
+        rb += ((parseFloat(b.weight)||0) / totalWeight) * compR;
+      }
+    });
+    twrrFactor *= (1 + r);
+    benchFactor *= (1 + rb);
+    series.push({date: curr.date, twrrCum: twrrFactor - 1, benchCum: benchFactor - 1});
+    rows.push({period: prev.date + ' → ' + curr.date, cf: cfUsd, r: r, rb: rb});
   }
   return {series: series, rows: rows, twrr: twrrFactor - 1, bench: benchFactor - 1};
 }
@@ -1617,14 +1690,28 @@ function render(){
       avgCostCell += '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(avgCostUsd) + ' @ ' + fmt(impliedFx) + ')</span>';
     }
 
+    var valueUsdCell = '';
+    var pnlUsdCell = '';
+    if(isUsd && currentPricesForeign[sym] && currentPricesForeign[sym].priceUSD){
+      var valueUsdNative = h.qty * currentPricesForeign[sym].priceUSD;
+      valueUsdCell = '<br /><span style="font-size:11px;color:var(--text-muted);">= $' + fmt(valueUsdNative) + '</span>';
+      if(avgCostUsd !== null){
+        var pnlUsdNative = valueUsdNative - h.costUsd + (divRecv && referenceFxRate ? divRecv / referenceFxRate : 0);
+        pnlUsdCell = '<br /><span style="font-size:11px;font-weight:400;color:var(--text-muted);">= $' + fmt(pnlUsdNative) + '</span>';
+      }
+    } else if(referenceFxRate){
+      valueUsdCell = '<br /><span style="font-size:11px;color:var(--text-muted);">≈ $' + fmt(value / referenceFxRate) + '</span>';
+      pnlUsdCell = '<br /><span style="font-size:11px;font-weight:400;color:var(--text-muted);">≈ $' + fmt(pnl / referenceFxRate) + '</span>';
+    }
+
     rows += '<tr>' +
       '<td style="font-weight:500;">' + escapeHtml(sym) + ' <select class="currency-override-select" data-symbol="' + escapeAttr(sym) + '" style="width:auto;padding:1px 4px;font-size:10px;display:inline-block;' + (isUsd ? 'color:var(--text-accent);border-color:var(--text-accent);' : 'color:var(--text-muted);') + '"><option value="THB"' + (isUsd ? '' : ' selected') + '>บาท</option><option value="USD"' + (isUsd ? ' selected' : '') + '>USD</option></select></td>' +
       '<td style="text-align:right;">' + fmt(h.qty) + '</td>' +
       '<td style="text-align:right;">' + avgCostCell + '</td>' +
       '<td style="text-align:right;">' + fmt(breakeven) + '</td>' +
       '<td style="text-align:right;">' + priceCell + '</td>' +
-      '<td style="text-align:right;">' + fmt(value) + '</td>' +
-      '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '<br /><span style="font-size:11px;font-weight:400;">(' + (pnlPercent>=0?'+':'') + pnlPercent.toFixed(2) + '%)</span></td>' +
+      '<td style="text-align:right;">' + fmt(value) + valueUsdCell + '</td>' +
+      '<td style="text-align:right;color:' + pnlColor + ';font-weight:500;">' + fmt(pnl) + '<br /><span style="font-size:11px;font-weight:400;">(' + (pnlPercent>=0?'+':'') + pnlPercent.toFixed(2) + '%)</span>' + pnlUsdCell + '</td>' +
       '</tr>';
   });
 
@@ -1717,6 +1804,19 @@ function render(){
   pnlEl.style.color = totalPnl >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
   document.getElementById('m-div').textContent = fmt(totalDiv);
 
+  if(document.activeElement !== document.getElementById('ref-fx-input')){
+    document.getElementById('ref-fx-input').value = referenceFxRate || '';
+  }
+  if(referenceFxRate && referenceFxRate > 0){
+    document.getElementById('m-invested-usd').textContent = '≈ $' + fmt(totalInvested / referenceFxRate);
+    document.getElementById('m-value-usd').textContent = '≈ $' + fmt(totalValue / referenceFxRate);
+    document.getElementById('m-pnl-usd').textContent = '≈ $' + fmt(totalPnl / referenceFxRate);
+  } else {
+    document.getElementById('m-invested-usd').textContent = '';
+    document.getElementById('m-value-usd').textContent = '';
+    document.getElementById('m-pnl-usd').textContent = '';
+  }
+
   var label = benchmarkLabel();
   document.getElementById('bench-label').textContent = 'ผลตอบแทน ' + label;
   document.getElementById('th-bench-col').textContent = label;
@@ -1725,12 +1825,25 @@ function render(){
   var startDate = document.getElementById('f-start').value;
   var endDate = document.getElementById('f-end').value;
   var result = computeSeries(startDate, endDate, includeDividends);
+  var resultUsd = computeSeriesUsd(startDate, endDate, includeDividends);
 
   var twrrEl = document.getElementById('m-twrr');
   var benchEl = document.getElementById('m-bench');
   var alphaEl = document.getElementById('m-alpha');
   var navPortEl = document.getElementById('m-nav-port');
   var navBenchEl = document.getElementById('m-nav-bench');
+  var twrrUsdEl = document.getElementById('m-twrr-usd');
+  var navPortUsdEl = document.getElementById('m-nav-port-usd');
+
+  if(resultUsd){
+    twrrUsdEl.textContent = fmtPct(resultUsd.twrr);
+    twrrUsdEl.style.color = resultUsd.twrr >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    var lastUsdPoint = resultUsd.series[resultUsd.series.length - 1];
+    navPortUsdEl.textContent = fmt(100 * (1 + lastUsdPoint.twrrCum));
+  } else {
+    twrrUsdEl.textContent = '-';
+    navPortUsdEl.textContent = '-';
+  }
 
   if(result){
     twrrEl.textContent = fmtPct(result.twrr);
@@ -1753,7 +1866,16 @@ function render(){
         '</tr>';
     }).join('');
     document.getElementById('twrr-body').innerHTML = twrrRows;
-    renderChart(result.series);
+
+    var showUsdChart = document.getElementById('chart-usd-toggle').checked;
+    if(showUsdChart){
+      if(resultUsd){ renderChart(resultUsd.series); }
+      else {
+        document.getElementById('chart-container').innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่มี Snapshot ที่บันทึกอัตราแลกเปลี่ยน USD/THB ไว้อย่างน้อย 2 จุดในช่วงนี้ — เพิ่มอัตราแลกเปลี่ยนตอนบันทึก Snapshot เพื่อดูกราฟ USD</p>';
+      }
+    } else {
+      renderChart(result.series);
+    }
   } else {
     twrrEl.textContent = '-';
     benchEl.textContent = '-';
@@ -1778,14 +1900,20 @@ function render(){
   if(fullResult){
     fullResult.series.forEach(function(p){ navByDate[p.date] = {portfolio: 100*(1+p.twrrCum), bench: 100*(1+p.benchCum)}; });
   }
+  var fullResultUsd = computeSeriesUsd(null, null, includeDividends);
+  var navUsdByDate = {};
+  if(fullResultUsd){
+    fullResultUsd.series.forEach(function(p){ navUsdByDate[p.date] = 100*(1+p.twrrCum); });
+  }
   var benchHeaderCols = benchmarkComponents.map(function(b){
     return '<th style="text-align:right;">' + escapeHtml(b.name || 'Benchmark') + '</th>';
   }).join('');
   document.getElementById('snap-thead').innerHTML =
-    '<tr><th>วันที่</th><th>ที่มา</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th>' +
+    '<tr><th>วันที่</th><th>ที่มา</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">มูลค่าพอร์ต (USD)</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV พอร์ต (USD)</th><th style="text-align:right;">NAV Benchmark</th>' +
     benchHeaderCols + '<th></th></tr>';
   var snapRows = snapshots.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(s){
     var nav = navByDate[s.date];
+    var navUsd = navUsdByDate[s.date];
     var benchCells = benchmarkComponents.map(function(b){
       var v = s.benchValues ? s.benchValues[b.id] : undefined;
       return '<td style="text-align:right;">' + (v !== undefined && v !== null ? fmt4(v) : '<span style="color:var(--text-muted);">-</span>') + '</td>';
@@ -1800,13 +1928,15 @@ function render(){
       '<td style="color:var(--text-secondary);">' + dateCell + '</td>' +
       '<td>' + sourceBadge + '</td>' +
       '<td style="text-align:right;">' + fmt(s.value) + '</td>' +
+      '<td style="text-align:right;">' + (s.fxRateUsd ? '$' + fmt(s.value / s.fxRateUsd) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
       '<td style="text-align:right;">' + (nav ? fmt(nav.portfolio) : '-') + '</td>' +
+      '<td style="text-align:right;">' + (navUsd !== undefined ? fmt(navUsd) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
       '<td style="text-align:right;">' + (nav ? fmt(nav.bench) : '-') + '</td>' +
       benchCells +
       '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="snap" data-id="' + s.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
-  document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="' + (6 + benchmarkComponents.length) + '" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
+  document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="' + (8 + benchmarkComponents.length) + '" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
 
   /* ---------- DCA plan table + chart ---------- */
   var dcaRows = computeDCAPlan();
@@ -1937,6 +2067,31 @@ function render(){
 
   saveData();
 }
+
+document.getElementById('ref-fx-input').addEventListener('change', function(){
+  referenceFxRate = parseFloat(this.value) || null;
+  render();
+});
+document.getElementById('ref-fx-fetch').addEventListener('click', function(){
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    referenceFxRate = rate;
+    document.getElementById('ref-fx-input').value = rate.toFixed(4);
+    render();
+  }).catch(function(){
+    window.alert('ดึงอัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+});
+
+document.getElementById('chart-usd-toggle').addEventListener('change', function(){
+  render();
+});
 
 document.getElementById('include-dividends-toggle').addEventListener('change', function(){
   includeDividends = this.checked;
@@ -2148,19 +2303,38 @@ document.getElementById('s-pull').addEventListener('click', function(){
   document.getElementById('s-value').value = total.toFixed(2);
 });
 
+document.getElementById('s-fx-fetch').addEventListener('click', function(){
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    document.getElementById('s-fx-rate').value = rate.toFixed(4);
+  }).catch(function(){
+    window.alert('ดึงอัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+});
+
 document.getElementById('s-add').addEventListener('click', function(){
   var date = document.getElementById('s-date').value;
   var value = parseFloat(document.getElementById('s-value').value);
   if(!date || !value || value <= 0) return;
+  var fxRateUsd = parseFloat(document.getElementById('s-fx-rate').value) || null;
   var benchValues = {};
   Array.prototype.forEach.call(document.querySelectorAll('.s-bench-val'), function(inp){
     var v = parseFloat(inp.value);
     if(v && v > 0){ benchValues[inp.getAttribute('data-id')] = v; }
   });
   snapId++;
-  snapshots.push({id:'snap'+snapId, date:date, value:value, benchValues:benchValues, source:'manual', createdAt:new Date().toISOString()});
+  var record = {id:'snap'+snapId, date:date, value:value, benchValues:benchValues, source:'manual', createdAt:new Date().toISOString()};
+  if(fxRateUsd){ record.fxRateUsd = fxRateUsd; }
+  snapshots.push(record);
   document.getElementById('s-date').value = '';
   document.getElementById('s-value').value = '';
+  document.getElementById('s-fx-rate').value = '';
   Array.prototype.forEach.call(document.querySelectorAll('.s-bench-val'), function(inp){ inp.value = ''; });
   render();
 });
@@ -2316,10 +2490,14 @@ function renderAutoPriceBanner(data){
         benchValues[b.id] = data.benchmarks[b.symbol];
       }
     });
-    snapId++;
-    snapshots.push({id: 'snap' + snapId, date: todayStr, value: total, benchValues: benchValues, source: 'manual', createdAt: new Date().toISOString()});
-    render();
-    window.alert('เพิ่ม Snapshot วันที่ ' + todayStr + ' เรียบร้อยจากข้อมูลราคาอัตโนมัติ');
+    fetchYahooPrice('THB=X').catch(function(){ return null; }).then(function(fxRateUsd){
+      snapId++;
+      var record = {id: 'snap' + snapId, date: todayStr, value: total, benchValues: benchValues, source: 'manual', createdAt: new Date().toISOString()};
+      if(fxRateUsd){ record.fxRateUsd = fxRateUsd; }
+      snapshots.push(record);
+      render();
+      window.alert('เพิ่ม Snapshot วันที่ ' + todayStr + ' เรียบร้อยจากข้อมูลราคาอัตโนมัติ');
+    });
   });
 }
 
