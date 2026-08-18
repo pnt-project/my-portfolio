@@ -333,7 +333,7 @@
       <p class="panel-sub" style="margin-top:0;">ดึงราคาจาก Yahoo Finance ผ่าน CORS proxy สาธารณะ (สัญลักษณ์หุ้น + .BK) — ไม่ใช่ทางการ อาจล่ม/ช้า/ไม่ครบทุกตัว ควรตรวจสอบราคาก่อนใช้จริง</p>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนเฉลี่ย USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนเฉลี่ย THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
+        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนรวม USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนรวม THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
         <tbody id="holdings-body"></tbody>
       </table>
       </div>
@@ -397,7 +397,7 @@
   <p class="panel-title">รายงานผลตอบแทนรายช่วง (TWRR เทียบ Benchmark)</p>
   <div style="overflow-x:auto;">
   <table>
-    <thead><tr><th>ช่วงเวลา</th><th style="text-align:right;">เงินไหลเข้าสุทธิ</th><th style="text-align:right;">ผลตอบแทนพอร์ต</th><th style="text-align:right;" id="th-bench-col">Benchmark</th></tr></thead>
+    <thead><tr><th>ช่วงเวลา</th><th style="text-align:right;">เงินไหลเข้าสุทธิ</th><th style="text-align:right;">ผลตอบแทนพอร์ต</th><th style="text-align:right;">ผลตอบแทนพอร์ต (USD)</th><th style="text-align:right;" id="th-bench-col">Benchmark</th></tr></thead>
     <tbody id="twrr-body"></tbody>
   </table>
   </div>
@@ -1667,11 +1667,12 @@ function render(){
     var avgCostUsd = (isUsd && h.costUsd > 0) ? h.costUsd / h.qty : null;
     var impliedFx = (avgCostUsd && avgCostUsd > 0) ? avgCost / avgCostUsd : null;
 
-    var valueUsdNative = null, pnlUsdNative = null;
+    var valueUsdNative = null, pnlUsdNative = null, pnlPercentUsd = null;
     if(isUsd && currentPricesForeign[sym] && currentPricesForeign[sym].priceUSD){
       valueUsdNative = h.qty * currentPricesForeign[sym].priceUSD;
       if(avgCostUsd !== null){
         pnlUsdNative = valueUsdNative - h.costUsd + (divRecv && referenceFxRate ? divRecv / referenceFxRate : 0);
+        pnlPercentUsd = h.costUsd > 0 ? (pnlUsdNative / h.costUsd) * 100 : 0;
       }
     }
 
@@ -1688,7 +1689,7 @@ function render(){
         '<button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" data-usd="1" style="padding:6px 8px;font-size:12px;" title="ดึงราคา USD และอัตราแลกเปลี่ยนล่าสุด">🔄</button>' +
         '</div>';
       valueThbCell = fmt(value);
-      pnlUsdCell = pnlUsdNative !== null ? ('$' + fmt(pnlUsdNative)) : '-';
+      pnlUsdCell = pnlUsdNative !== null ? ('$' + fmt(pnlUsdNative) + '<br /><span style="font-size:11px;font-weight:400;">(' + (pnlPercentUsd>=0?'+':'') + pnlPercentUsd.toFixed(2) + '%)</span>') : '-';
     } else {
       valueUsdCell = referenceFxRate ? ('<span style="color:var(--text-muted);">≈ $' + fmt(value / referenceFxRate) + '</span>') : '<span style="color:var(--text-muted);">-</span>';
       valueThbCell =
@@ -1697,15 +1698,15 @@ function render(){
         '<input type="number" step="0.01" min="0" data-symbol="' + escapeAttr(sym) + '" class="price-input" value="' + curPrice.toFixed(2) + '" style="width:76px;text-align:right;" placeholder="ราคา/หน่วย" />' +
         '<button type="button" class="fetch-price-btn btn-secondary" data-symbol="' + escapeAttr(sym) + '" style="padding:6px 8px;font-size:12px;" title="ดึงราคาล่าสุดจาก Yahoo Finance (' + escapeHtml(sym) + '.BK)">🔄</button>' +
         '</div>';
-      pnlUsdCell = referenceFxRate ? ('<span style="color:var(--text-muted);">≈ $' + fmt(pnl / referenceFxRate) + '</span>') : '<span style="color:var(--text-muted);">-</span>';
+      pnlUsdCell = referenceFxRate ? ('<span style="color:var(--text-muted);">≈ $' + fmt(pnl / referenceFxRate) + '</span><br /><span style="font-size:11px;font-weight:400;color:var(--text-muted);">(' + (pnlPercent>=0?'+':'') + pnlPercent.toFixed(2) + '%)</span>') : '<span style="color:var(--text-muted);">-</span>';
     }
 
     rows += '<tr>' +
       '<td style="font-weight:500;">' + escapeHtml(sym) + ' <select class="currency-override-select" data-symbol="' + escapeAttr(sym) + '" style="width:auto;padding:1px 4px;font-size:10px;display:inline-block;' + (isUsd ? 'color:var(--text-accent);border-color:var(--text-accent);' : 'color:var(--text-muted);') + '"><option value="THB"' + (isUsd ? '' : ' selected') + '>บาท</option><option value="USD"' + (isUsd ? ' selected' : '') + '>USD</option></select></td>' +
       '<td style="text-align:right;">' + fmt(h.qty) + '</td>' +
-      '<td style="text-align:right;">' + (avgCostUsd !== null ? fmt(avgCostUsd) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
+      '<td style="text-align:right;">' + (avgCostUsd !== null ? '$' + fmt(h.costUsd) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
       '<td style="text-align:right;">' + (impliedFx !== null ? fmt(impliedFx) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
-      '<td style="text-align:right;">' + fmt(avgCost) + '</td>' +
+      '<td style="text-align:right;">' + fmt(h.cost) + '</td>' +
       '<td style="text-align:right;">' + valueUsdCell + '</td>' +
       '<td style="text-align:right;">' + valueThbCell + '</td>' +
       '<td style="text-align:right;">' + pnlUsdCell + '</td>' +
@@ -1865,11 +1866,17 @@ function render(){
     navPortEl.textContent = fmt(100 * (1 + lastPoint.twrrCum));
     navBenchEl.textContent = fmt(100 * (1 + lastPoint.benchCum));
 
+    var usdRowsByPeriod = {};
+    if(resultUsd){
+      resultUsd.rows.forEach(function(row){ usdRowsByPeriod[row.period] = row; });
+    }
     var twrrRows = result.rows.map(function(row){
+      var usdRow = usdRowsByPeriod[row.period];
       return '<tr>' +
         '<td style="color:var(--text-secondary);">' + row.period + '</td>' +
         '<td style="text-align:right;">' + fmt(row.cf) + '</td>' +
         '<td style="text-align:right;color:' + (row.r>=0?'var(--text-success)':'var(--text-danger)') + ';">' + fmtPct(row.r) + '</td>' +
+        '<td style="text-align:right;' + (usdRow ? 'color:' + (usdRow.r>=0?'var(--text-success)':'var(--text-danger)') + ';' : 'color:var(--text-muted);') + '">' + (usdRow ? fmtPct(usdRow.r) : '-') + '</td>' +
         '<td style="text-align:right;color:' + (row.rb>=0?'var(--text-success)':'var(--text-danger)') + ';">' + fmtPct(row.rb) + '</td>' +
         '</tr>';
     }).join('');
@@ -1890,7 +1897,7 @@ function render(){
     alphaEl.textContent = '-';
     navPortEl.textContent = '-';
     navBenchEl.textContent = '-';
-    document.getElementById('twrr-body').innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดในช่วงเวลาที่เลือกเพื่อคำนวณ</td></tr>';
+    document.getElementById('twrr-body').innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดในช่วงเวลาที่เลือกเพื่อคำนวณ</td></tr>';
     renderChart(null);
   }
 
