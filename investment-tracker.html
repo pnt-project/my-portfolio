@@ -75,6 +75,17 @@
   }
   .it-wrap .bench-row { display: grid; grid-template-columns: 1fr 1fr 70px auto; gap: 8px; margin-bottom: 8px; align-items: center; }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  .it-wrap .tab-nav { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:1.1rem; -webkit-overflow-scrolling:touch; }
+  .it-wrap .tab-btn { background:none; border:none; border-bottom:2px solid transparent; border-radius:0; color:var(--text-secondary); font-weight:500; font-size:13px; padding:10px 14px; white-space:nowrap; cursor:pointer; }
+  .it-wrap .tab-btn:hover { opacity:1; color:var(--text-primary); }
+  .it-wrap .tab-btn.active { color:var(--text-accent); border-bottom-color:var(--text-accent); }
+  .it-wrap .tab-content { display:none; }
+  .it-wrap .tab-content.active { display:block; }
+  .it-wrap .tab-layout { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
+  @media (min-width: 900px) {
+    .it-wrap .tab-layout.with-side { grid-template-columns: 340px 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -142,12 +153,21 @@
 
 <div id="auto-price-banner" class="panel" style="display:none;background:var(--bg-accent);"></div>
 
+
+<div class="tab-nav">
+  <button type="button" class="tab-btn" id="tab-btn-overview">🏠 Overview</button>
+  <button type="button" class="tab-btn" id="tab-btn-holdings">💼 Holdings</button>
+  <button type="button" class="tab-btn" id="tab-btn-performance">📈 Performance</button>
+  <button type="button" class="tab-btn" id="tab-btn-dividends">🪙 Dividends</button>
+  <button type="button" class="tab-btn" id="tab-btn-allocation">🥧 Allocation</button>
+</div>
+
+<div id="tab-overview" class="tab-content">
 <div class="panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
   <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">💵 อัตราแลกเปลี่ยนอ้างอิง (USD/THB) สำหรับแปลงมูลค่าปัจจุบันเป็น USD:</span>
   <input id="ref-fx-input" type="number" min="0" step="0.0001" placeholder="เช่น 35.20" style="max-width:130px;" />
   <button id="ref-fx-fetch" type="button" class="btn-secondary">ดึงอัตราล่าสุด</button>
 </div>
-
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px;">
   <div class="metric-card"><p class="metric-label">เงินลงทุนสุทธิ</p><p class="metric-value" id="m-invested">0</p></div>
   <div class="metric-card"><p class="metric-label">มูลค่าตลาดปัจจุบัน</p><p class="metric-value" id="m-value">0</p></div>
@@ -155,7 +175,6 @@
   <div class="metric-card"><p class="metric-label">เงินปันผลสะสม</p><p class="metric-value" id="m-div">0</p></div>
   <div class="metric-card"><p class="metric-label">เงินฝาก-ถอนสุทธิ</p><p class="metric-value" id="m-netcash">0</p></div>
 </div>
-
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:1.25rem;">
   <div class="metric-card"><p class="metric-label">เงินลงทุนสุทธิ USD</p><p class="metric-value" id="m-invested-usd">-</p></div>
   <div class="metric-card"><p class="metric-label">มูลค่าตลาดปัจจุบัน USD</p><p class="metric-value" id="m-value-usd">-</p></div>
@@ -163,20 +182,8 @@
   <div class="metric-card"><p class="metric-label">ปันผลสะสม USD</p><p class="metric-value" id="m-div-usd">-</p></div>
   <div class="metric-card"><p class="metric-label">เงินฝาก-ถอนสุทธิ USD</p><p class="metric-value" id="m-netcash-usd">-</p></div>
 </div>
-
-<div class="layout">
-  <div class="left-col">
-
-    <div class="panel">
-      <p class="panel-title">📊 Benchmark &amp; สัดส่วนเปรียบเทียบ</p>
-      <p class="panel-sub">เพิ่มสินทรัพย์และกำหนด % น้ำหนักในที่เดียว ใส่ "สัญลักษณ์ Yahoo" (ไม่บังคับ) เช่น ^SET.BK, ^GSPC, GC=F เพื่อดึงราคาอัตโนมัติได้</p>
-      <div id="bench-rows"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;">
-        <button id="bench-add-row" type="button" class="btn-secondary">+ เพิ่ม Benchmark</button>
-        <p id="bench-weight-total" style="font-size:12px;margin:0;"></p>
-      </div>
-    </div>
-
+  <div class="tab-layout">
+    <div class="left-col">
     <div class="panel">
       <p class="panel-title">🔁 เงินฝาก / ถอนเงินสด</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -189,7 +196,59 @@
       </div>
       <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
     </div>
+    </div>
+    <div class="right-col">
+    <div class="panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+      <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">📅 ช่วงเวลาที่ดู (สำหรับ TWRR):</span>
+      <input id="f-start" type="date" style="max-width:150px;" />
+      <span style="font-size:13px;color:var(--text-muted);">ถึง</span>
+      <input id="f-end" type="date" style="max-width:150px;" />
+      <button id="f-reset" type="button" class="btn-secondary">ดูทั้งหมด</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px;">
+      <div class="metric-card accent"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม USD</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr-usd">-</p></div>
+      <div class="metric-card accent"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม THB</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr">-</p></div>
+      <div class="metric-card"><p class="metric-label" id="bench-label">TWRR Benchmark</p><p class="metric-value" id="m-bench">-</p></div>
+      <div class="metric-card"><p class="metric-label">NAV พอร์ต USD (ฐาน 100)</p><p class="metric-value" id="m-nav-port-usd">-</p></div>
+      <div class="metric-card"><p class="metric-label">NAV พอร์ต THB (ฐาน 100)</p><p class="metric-value" id="m-nav-port">-</p></div>
+      <div class="metric-card"><p class="metric-label">NAV Benchmark (ฐาน 100)</p><p class="metric-value" id="m-nav-bench">-</p></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
+      <div class="metric-card"><p class="metric-label">Alpha พอร์ต USD</p><p class="metric-value" id="m-alpha-usd">-</p></div>
+      <div class="metric-card"><p class="metric-label">Alpha พอร์ต THB</p><p class="metric-value" id="m-alpha">-</p></div>
+      <div class="metric-card"><p class="metric-label">พอร์ต USD-THB</p><p class="metric-value" id="m-fx-rate">-</p></div>
+      <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">📈 ผลตอบแทนสะสม (%) เทียบ Benchmark</p>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="include-dividends-toggle" checked style="width:auto;" /> รวมเงินปันผลในผลตอบแทน (Total Return) — ยกเลิกติ๊กเพื่อดูเฉพาะผลตอบแทนจากราคา (Price Return)
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="chart-usd-toggle" style="width:auto;" /> แสดงกราฟเป็น USD แทนบาท (ใช้ได้เฉพาะช่วงที่ Snapshot มีอัตราแลกเปลี่ยนบันทึกไว้)
+      </label>
+      <div id="chart-container"></div>
+      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-accent);display:inline-block;"></span>พอร์ตของคุณ</span>
+        <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span><span id="chart-bench-legend-text">Benchmark</span></span>
+      </div>
+    </div>
+    </div>
+  </div>
+<div class="panel">
+  <p class="panel-title">เงินฝาก-ถอน</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
+    <tbody id="cash-body"></tbody>
+  </table>
+  </div>
+</div>
+</div>
 
+<div id="tab-holdings" class="tab-content">
+  <div class="tab-layout with-side">
+    <div class="left-col">
     <div class="panel">
       <p class="panel-title">🧾 ธุรกรรมซื้อ/ขาย</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -212,6 +271,7 @@
           </div>
           <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">มูลค่ารวม (บาท) = ราคา USD × อัตราแลกเปลี่ยน × จำนวนหน่วย — คำนวณให้อัตโนมัติตอนกดเพิ่ม</p>
         </div>
+        <input id="t-fee" type="number" min="0" step="0.01" placeholder="ค่าธรรมเนียม (บาท)" style="grid-column:1/-1;" />
         <input id="t-date" type="date" style="grid-column:1/-1;" />
         <input id="t-note" type="text" placeholder="โน้ต (ไม่บังคับ) เช่น เหตุผลที่ซื้อ/ขาย" style="grid-column:1/-1;" />
       </div>
@@ -220,17 +280,47 @@
         <button id="t-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
       </div>
     </div>
-
-    <div class="panel">
-      <p class="panel-title">🪙 เงินปันผล</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <input id="d-symbol" placeholder="สัญลักษณ์หุ้น" />
-        <input id="d-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงินรวม" />
-        <input id="d-date" type="date" style="grid-column:1/-1;" />
-      </div>
-      <button id="d-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
     </div>
+    <div class="right-col">
+    <div class="panel">
+      <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <button id="fetch-all-prices" type="button" class="btn-secondary">🔄 ดึงราคาทั้งหมด (Yahoo Finance)</button>
+        <span id="fetch-status" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <p class="panel-sub" style="margin-top:0;">ดึงราคาจาก Yahoo Finance ผ่าน CORS proxy สาธารณะ (สัญลักษณ์หุ้น + .BK) — ไม่ใช่ทางการ อาจล่ม/ช้า/ไม่ครบทุกตัว ควรตรวจสอบราคาก่อนใช้จริง</p>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนรวม USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนรวม THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
+        <tbody id="holdings-body"></tbody>
+      </table>
+      </div>
+    </div>
+    </div>
+  </div>
+<div class="panel" style="margin-bottom:0;">
+  <p class="panel-title">ธุรกรรมซื้อ/ขาย</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>วันที่</th><th>หุ้น</th><th>ประเภท</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ราคา</th><th style="text-align:right;">มูลค่ารวม</th><th style="text-align:right;">ค่าธรรมเนียม</th><th>โน้ต</th><th></th></tr></thead>
+    <tbody id="tx-body"></tbody>
+  </table>
+  </div>
+</div>
+</div>
 
+<div id="tab-performance" class="tab-content">
+  <div class="tab-layout with-side">
+    <div class="left-col">
+    <div class="panel">
+      <p class="panel-title">📊 Benchmark &amp; สัดส่วนเปรียบเทียบ</p>
+      <p class="panel-sub">เพิ่มสินทรัพย์และกำหนด % น้ำหนักในที่เดียว ใส่ "สัญลักษณ์ Yahoo" (ไม่บังคับ) เช่น ^SET.BK, ^GSPC, GC=F เพื่อดึงราคาอัตโนมัติได้</p>
+      <div id="bench-rows"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        <button id="bench-add-row" type="button" class="btn-secondary">+ เพิ่ม Benchmark</button>
+        <p id="bench-weight-total" style="font-size:12px;margin:0;"></p>
+      </div>
+    </div>
     <div class="panel">
       <p class="panel-title">📷 Snapshot มูลค่าพอร์ต &amp; Benchmark</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -258,45 +348,8 @@
       </div>
       <p class="panel-sub" style="margin-top:10px;margin-bottom:0;">Benchmark ตัวไหนไม่มีข้อมูลวันนั้นเว้นว่างได้ ไม่บังคับกรอกครบ</p>
     </div>
-
-  </div>
-
-  <div class="right-col">
-
-    <div class="panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
-      <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">📅 ช่วงเวลาที่ดู (สำหรับ TWRR):</span>
-      <input id="f-start" type="date" style="max-width:150px;" />
-      <span style="font-size:13px;color:var(--text-muted);">ถึง</span>
-      <input id="f-end" type="date" style="max-width:150px;" />
-      <button id="f-reset" type="button" class="btn-secondary">ดูทั้งหมด</button>
     </div>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
-      <div class="metric-card accent"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม (พอร์ต)</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr">-</p></div>
-      <div class="metric-card"><p class="metric-label" id="bench-label">ผลตอบแทน Benchmark</p><p class="metric-value" id="m-bench">-</p></div>
-      <div class="metric-card"><p class="metric-label">ส่วนต่าง (Alpha)</p><p class="metric-value" id="m-alpha">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV พอร์ต (ฐาน 100)</p><p class="metric-value" id="m-nav-port">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV Benchmark (ฐาน 100)</p><p class="metric-value" id="m-nav-bench">-</p></div>
-      <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
-      <div class="metric-card"><p class="metric-label">TWRR สะสม (USD)</p><p class="metric-value" id="m-twrr-usd">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV พอร์ต (USD, ฐาน 100)</p><p class="metric-value" id="m-nav-port-usd">-</p></div>
-    </div>
-
-    <div class="panel">
-      <p class="panel-title">📈 ผลตอบแทนสะสม (%) เทียบ Benchmark</p>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
-        <input type="checkbox" id="include-dividends-toggle" checked style="width:auto;" /> รวมเงินปันผลในผลตอบแทน (Total Return) — ยกเลิกติ๊กเพื่อดูเฉพาะผลตอบแทนจากราคา (Price Return)
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);margin-bottom:8px;cursor:pointer;">
-        <input type="checkbox" id="chart-usd-toggle" style="width:auto;" /> แสดงกราฟเป็น USD แทนบาท (ใช้ได้เฉพาะช่วงที่ Snapshot มีอัตราแลกเปลี่ยนบันทึกไว้)
-      </label>
-      <div id="chart-container"></div>
-      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
-        <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-accent);display:inline-block;"></span>พอร์ตของคุณ</span>
-        <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span><span id="chart-bench-legend-text">Benchmark</span></span>
-      </div>
-    </div>
-
+    <div class="right-col">
     <div class="panel">
       <p class="panel-title">📊 ราคาหุ้นแต่ละตัวเทียบกับ Benchmark</p>
       <p class="panel-sub">ดึงข้อมูลราคาย้อนหลังสดจาก Yahoo Finance (ผ่าน CORS proxy เดียวกับปุ่มดึงราคา) แสดงเป็น % เปลี่ยนแปลงเทียบจากจุดเริ่มต้นช่วงที่เลือก</p>
@@ -323,22 +376,6 @@
       <div id="pc-chart-container"><p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">เลือกหุ้นและ Benchmark แล้วกด "โหลดกราฟ"</p></div>
       <div id="pc-legend" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;"></div>
     </div>
-
-    <div class="panel">
-      <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-        <button id="fetch-all-prices" type="button" class="btn-secondary">🔄 ดึงราคาทั้งหมด (Yahoo Finance)</button>
-        <span id="fetch-status" style="font-size:12px;color:var(--text-muted);"></span>
-      </div>
-      <p class="panel-sub" style="margin-top:0;">ดึงราคาจาก Yahoo Finance ผ่าน CORS proxy สาธารณะ (สัญลักษณ์หุ้น + .BK) — ไม่ใช่ทางการ อาจล่ม/ช้า/ไม่ครบทุกตัว ควรตรวจสอบราคาก่อนใช้จริง</p>
-      <div style="overflow-x:auto;">
-      <table>
-        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนรวม USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนรวม THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
-        <tbody id="holdings-body"></tbody>
-      </table>
-      </div>
-    </div>
-
     <div class="panel">
       <p class="panel-title">📅 แผน DCA เทียบกับเงินฝาก-ถอนจริง</p>
       <div style="margin-bottom:10px;max-width:220px;">
@@ -360,7 +397,92 @@
       </table>
       </div>
     </div>
+    </div>
+  </div>
+<div class="panel">
+  <p class="panel-title">รายงานผลตอบแทนรายช่วง (TWRR เทียบ Benchmark)</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>ช่วงเวลา</th><th style="text-align:right;">เงินไหลเข้าสุทธิ</th><th style="text-align:right;">ผลตอบแทนพอร์ต</th><th style="text-align:right;">ผลตอบแทนพอร์ต (USD)</th><th style="text-align:right;" id="th-bench-col">Benchmark</th></tr></thead>
+    <tbody id="twrr-body"></tbody>
+  </table>
+  </div>
+</div>
+<div class="panel">
+  <p class="panel-title">Snapshot &amp; NAV เปรียบเทียบ (ฐาน 100)</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead id="snap-thead"><tr><th>วันที่</th><th>ที่มา</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th><th></th></tr></thead>
+    <tbody id="snap-body"></tbody>
+  </table>
+  </div>
+</div>
+</div>
 
+<div id="tab-dividends" class="tab-content">
+  <div class="tab-layout with-side">
+    <div class="left-col">
+    <div class="panel">
+      <p class="panel-title">🪙 เงินปันผล</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <input id="d-symbol" placeholder="สัญลักษณ์หุ้น" />
+        <input id="d-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงินรวม" />
+        <input id="d-date" type="date" style="grid-column:1/-1;" />
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="d-add" style="flex:1;">+ เพิ่ม</button>
+        <button id="d-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
+      </div>
+    </div>
+    </div>
+    <div class="right-col">
+
+    <div class="panel">
+      <p class="panel-title">📅 ปฏิทินคาดการณ์เงินปันผลรายเดือน (12 เดือนข้างหน้า)</p>
+      <p class="panel-sub">🔮 ประมาณอัตโนมัติจากค่าเฉลี่ยปันผลย้อนหลังของแต่ละหุ้นในเดือนเดียวกัน (สัญลักษณ์ ~) และรวมรายการที่คุณกรอกเอง (สัญลักษณ์ ✏️ — จะแทนที่ค่าประมาณอัตโนมัติของหุ้น/เดือนนั้น)</p>
+      <div id="div-forecast-calendar"></div>
+      <p id="div-forecast-year-total" style="font-size:13px;font-weight:600;margin-top:12px;color:var(--text-accent);"></p>
+    </div>
+
+    <div class="panel">
+      <p class="panel-title">✏️ กำหนดคาดการณ์ปันผลเอง</p>
+      <p class="panel-sub">ใช้แทนที่หรือเพิ่มเติมจากค่าประมาณอัตโนมัติ — กรอกหุ้น เดือน (ประจำปี) และจำนวนเงินที่คาดว่าจะได้รับ</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <input id="df-symbol" placeholder="สัญลักษณ์หุ้น" />
+        <select id="df-month">
+          <option value="1">มกราคม</option><option value="2">กุมภาพันธ์</option><option value="3">มีนาคม</option>
+          <option value="4">เมษายน</option><option value="5">พฤษภาคม</option><option value="6">มิถุนายน</option>
+          <option value="7">กรกฎาคม</option><option value="8">สิงหาคม</option><option value="9">กันยายน</option>
+          <option value="10">ตุลาคม</option><option value="11">พฤศจิกายน</option><option value="12">ธันวาคม</option>
+        </select>
+        <input id="df-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงินที่คาดว่าจะได้ (บาท)" style="grid-column:1/-1;" />
+        <input id="df-note" type="text" placeholder="โน้ต (ไม่บังคับ)" style="grid-column:1/-1;" />
+      </div>
+      <button id="df-add" style="width:100%;margin-top:8px;">+ เพิ่มคาดการณ์</button>
+      <div style="overflow-x:auto;margin-top:12px;">
+      <table>
+        <thead><tr><th>หุ้น</th><th>เดือน</th><th style="text-align:right;">จำนวนเงิน</th><th>โน้ต</th><th></th></tr></thead>
+        <tbody id="df-body"></tbody>
+      </table>
+      </div>
+    </div>
+
+    </div>
+  </div>
+<div class="panel">
+  <p class="panel-title">เงินปันผล</p>
+  <p style="font-size:13px;font-weight:500;margin:0 0 8px;color:var(--text-secondary);">ประวัติเงินปันผลรายเดือน</p>
+  <div id="div-bar-chart"></div>
+  <div style="overflow-x:auto;margin-top:12px;">
+  <table>
+    <thead><tr><th>วันที่</th><th>หุ้น</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
+    <tbody id="div-body"></tbody>
+  </table>
+  </div>
+</div>
+</div>
+
+<div id="tab-allocation" class="tab-content">
     <div class="panel">
       <p class="panel-title">🥧 สัดส่วนสินทรัพย์ในพอร์ต เทียบกับแผนที่วางไว้</p>
       <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px;">
@@ -388,61 +510,29 @@
       </div>
     </div>
 
-  </div>
-</div>
+    <div class="panel">
+      <p class="panel-title">📊 สัดส่วนพอร์ตแยกตามหมวดหมู่</p>
+      <p class="panel-sub">คำนวณจากมูลค่าตลาดปัจจุบันของแต่ละหุ้น (หุ้นที่ยังไม่ได้กรอก Sector/Industry/Asset Class จะถูกจัดเป็น "ยังไม่ระบุ")</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+        <div><p style="font-size:12px;text-align:center;color:var(--text-secondary);margin:0 0 6px;">ตาม Sector</p><div id="alloc-sector-chart"></div></div>
+        <div><p style="font-size:12px;text-align:center;color:var(--text-secondary);margin:0 0 6px;">ตาม Industry</p><div id="alloc-industry-chart"></div></div>
+        <div><p style="font-size:12px;text-align:center;color:var(--text-secondary);margin:0 0 6px;">ตาม Currency</p><div id="alloc-currency-chart"></div></div>
+        <div><p style="font-size:12px;text-align:center;color:var(--text-secondary);margin:0 0 6px;">ตาม Asset Class</p><div id="alloc-assetclass-chart"></div></div>
+      </div>
+    </div>
 
-<p style="font-size:15px;font-weight:600;margin:1.5rem 0 12px;">ประวัติทั้งหมด</p>
 
-<div class="panel">
-  <p class="panel-title">รายงานผลตอบแทนรายช่วง (TWRR เทียบ Benchmark)</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>ช่วงเวลา</th><th style="text-align:right;">เงินไหลเข้าสุทธิ</th><th style="text-align:right;">ผลตอบแทนพอร์ต</th><th style="text-align:right;">ผลตอบแทนพอร์ต (USD)</th><th style="text-align:right;" id="th-bench-col">Benchmark</th></tr></thead>
-    <tbody id="twrr-body"></tbody>
-  </table>
-  </div>
-</div>
+    <div class="panel">
+      <p class="panel-title">🏷️ ข้อมูลสินทรัพย์ (Sector / Industry / Asset Class)</p>
+      <p class="panel-sub">กรอกข้อมูลเองต่อหุ้น เพื่อให้กราฟสัดส่วนด้านล่างแยกตาม Sector/Industry/Asset Class ได้ (สกุลเงินไม่ต้องกรอก ระบบดึงจากธุรกรรมอัตโนมัติ)</p>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>หุ้น</th><th>Sector</th><th>Industry</th><th>Asset Class</th></tr></thead>
+        <tbody id="asset-info-body"></tbody>
+      </table>
+      </div>
+    </div>
 
-<div class="panel">
-  <p class="panel-title">Snapshot &amp; NAV เปรียบเทียบ (ฐาน 100)</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead id="snap-thead"><tr><th>วันที่</th><th>ที่มา</th><th style="text-align:right;">มูลค่าพอร์ต</th><th style="text-align:right;">NAV พอร์ต</th><th style="text-align:right;">NAV Benchmark</th><th></th></tr></thead>
-    <tbody id="snap-body"></tbody>
-  </table>
-  </div>
-</div>
-
-<div class="panel">
-  <p class="panel-title">เงินฝาก-ถอน</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
-    <tbody id="cash-body"></tbody>
-  </table>
-  </div>
-</div>
-
-<div class="panel">
-  <p class="panel-title">เงินปันผล</p>
-  <p style="font-size:13px;font-weight:500;margin:0 0 8px;color:var(--text-secondary);">ประวัติเงินปันผลรายเดือน</p>
-  <div id="div-bar-chart"></div>
-  <div style="overflow-x:auto;margin-top:12px;">
-  <table>
-    <thead><tr><th>วันที่</th><th>หุ้น</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
-    <tbody id="div-body"></tbody>
-  </table>
-  </div>
-</div>
-
-<div class="panel" style="margin-bottom:0;">
-  <p class="panel-title">ธุรกรรมซื้อ/ขาย</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>วันที่</th><th>หุ้น</th><th>ประเภท</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ราคา</th><th style="text-align:right;">มูลค่ารวม</th><th>โน้ต</th><th></th></tr></thead>
-    <tbody id="tx-body"></tbody>
-  </table>
-  </div>
 </div>
 
 </div>
@@ -468,6 +558,10 @@ var txId = 0, divId = 0, cashId = 0, snapId = 0;
 var dcaPlan = {monthlyAmount: 0, startDate: '', months: 12};
 var targetAllocations = []; /* [{id, symbol, targetPercent}] */
 var targetAllocIdCounter = 1;
+var assetInfo = {}; /* {SYMBOL: {sector, industry, assetClass}} */
+var dividendForecasts = []; /* [{id, symbol, month(1-12), amount, note}] */
+var forecastId = 0;
+var THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 var includeDividends = true; /* UI-only toggle for the cumulative return chart, not persisted */
 
 /* ---------- multi-portfolio state ---------- */
@@ -482,7 +576,9 @@ function createEmptyPortfolio(id, name){
     benchmarkComponents: [{id: 'b1', name: '', weight: 100}],
     dcaPlan: {startDate: '', tiers: [{id: 't1', months: 12, monthlyAmount: 0}]},
     targetAllocations: [],
-    counters: {txId: 0, divId: 0, cashId: 0, snapId: 0, benchIdCounter: 1}
+    assetInfo: {},
+    dividendForecasts: [],
+    counters: {txId: 0, divId: 0, cashId: 0, snapId: 0, benchIdCounter: 1, forecastId: 0}
   };
 }
 
@@ -512,7 +608,9 @@ function migrateFlatToPortfolios(flat){
       benchmarkComponents: (flat.benchmarkComponents && flat.benchmarkComponents.length) ? flat.benchmarkComponents : [{id:'b1', name:'', weight:100}],
       dcaPlan: migrateDcaPlan(flat.dcaPlan),
       targetAllocations: flat.targetAllocations || [],
-      counters: flat.counters || {txId:0, divId:0, cashId:0, snapId:0, benchIdCounter:1}
+      assetInfo: flat.assetInfo || {},
+      dividendForecasts: flat.dividendForecasts || [],
+      counters: flat.counters || {txId:0, divId:0, cashId:0, snapId:0, benchIdCounter:1, forecastId:0}
     }],
     activePortfolioId: 'p1',
     portfolioIdCounter: 1
@@ -533,7 +631,9 @@ function syncGlobalsToActivePortfolio(){
   active.benchmarkComponents = benchmarkComponents;
   active.dcaPlan = dcaPlan;
   active.targetAllocations = targetAllocations;
-  active.counters = {txId:txId, divId:divId, cashId:cashId, snapId:snapId, benchIdCounter:benchIdCounter};
+  active.assetInfo = assetInfo;
+  active.dividendForecasts = dividendForecasts;
+  active.counters = {txId:txId, divId:divId, cashId:cashId, snapId:snapId, benchIdCounter:benchIdCounter, forecastId:forecastId};
 }
 
 function loadActivePortfolio(){
@@ -551,8 +651,10 @@ function loadActivePortfolio(){
   benchmarkComponents = (active.benchmarkComponents && active.benchmarkComponents.length) ? active.benchmarkComponents : [{id:'b1', name:'', weight:100}];
   dcaPlan = migrateDcaPlan(active.dcaPlan);
   targetAllocations = active.targetAllocations || [];
+  assetInfo = active.assetInfo || {};
+  dividendForecasts = active.dividendForecasts || [];
   var c = active.counters || {};
-  txId = c.txId || 0; divId = c.divId || 0; cashId = c.cashId || 0; snapId = c.snapId || 0; benchIdCounter = c.benchIdCounter || 1;
+  txId = c.txId || 0; divId = c.divId || 0; cashId = c.cashId || 0; snapId = c.snapId || 0; benchIdCounter = c.benchIdCounter || 1; forecastId = c.forecastId || 0;
 }
 
 function applyLoadedState(data){
@@ -913,15 +1015,23 @@ function getSymbolCurrency(sym){
   return (latest && latest.currency === 'USD') ? 'USD' : 'THB';
 }
 
+function txFee(t){ return t.fee || 0; }
+function txFeeForeign(t){ return t.feeForeign || 0; }
+/* cash value of a trade including fee: buy = money out (price*qty + fee), sell = money in (price*qty - fee) */
+function txCashAmount(t){
+  var base = t.qty * t.price;
+  return t.type === 'buy' ? (base + txFee(t)) : (base - txFee(t));
+}
+
 function computeHoldings(){
   var holdings = {};
   transactions.forEach(function(t){
     if(!holdings[t.symbol]) holdings[t.symbol] = {qty:0, cost:0, costUsd:0};
     var h = holdings[t.symbol];
     if(t.type === 'buy'){
-      h.cost += t.qty * t.price;
+      h.cost += t.qty * t.price + txFee(t);
       h.qty += t.qty;
-      if(t.currency === 'USD' && t.priceForeign){ h.costUsd += t.qty * t.priceForeign; }
+      if(t.currency === 'USD' && t.priceForeign){ h.costUsd += t.qty * t.priceForeign + txFeeForeign(t); }
     } else {
       var avgCost = h.qty > 0 ? h.cost / h.qty : 0;
       var avgCostUsd = h.qty > 0 ? h.costUsd / h.qty : 0;
@@ -939,7 +1049,7 @@ function computeCashBalanceAsOf(date){
     if(c.date <= date){ balance += (c.type === 'deposit' ? 1 : -1) * c.amount; }
   });
   transactions.forEach(function(t){
-    if(t.date <= date){ balance += (t.type === 'buy' ? -1 : 1) * t.qty * t.price; }
+    if(t.date <= date){ balance += (t.type === 'buy' ? -1 : 1) * txCashAmount(t); }
   });
   return balance; /* dividends are intentionally excluded here — they're already treated
     as leaving the tracked value immediately in cfInRange, consistent with the
@@ -952,7 +1062,7 @@ function computeHoldingsAsOf(date){
     if(t.date > date) return;
     if(!holdings[t.symbol]) holdings[t.symbol] = {qty:0, cost:0};
     var h = holdings[t.symbol];
-    if(t.type === 'buy'){ h.cost += t.qty * t.price; h.qty += t.qty; }
+    if(t.type === 'buy'){ h.cost += t.qty * t.price + txFee(t); h.qty += t.qty; }
     else { var avgCost = h.qty > 0 ? h.cost / h.qty : 0; h.cost -= avgCost * t.qty; h.qty -= t.qty; }
   });
   var total = 0;
@@ -969,7 +1079,7 @@ function computeHoldingsAsOf(date){
 function cfInRange(prevDate, currDate, incDiv){
   var cf = 0;
   transactions.forEach(function(t){
-    if(t.date > prevDate && t.date <= currDate){ cf += (t.type === 'buy' ? 1 : -1) * t.qty * t.price; }
+    if(t.date > prevDate && t.date <= currDate){ cf += (t.type === 'buy' ? 1 : -1) * txCashAmount(t); }
   });
   if(incDiv){
     dividendEntries.forEach(function(d){
@@ -1059,7 +1169,7 @@ function computeSeriesUsd(startDate, endDate, incDiv){
 function computeXIRR(){
   var flows = [];
   transactions.forEach(function(t){
-    flows.push({date: t.date, amount: (t.type === 'buy' ? -1 : 1) * t.qty * t.price});
+    flows.push({date: t.date, amount: (t.type === 'buy' ? -1 : 1) * txCashAmount(t)});
   });
   dividendEntries.forEach(function(d){
     flows.push({date: d.date, amount: d.amount});
@@ -1641,6 +1751,153 @@ function fetchYahooPrice(symbol){
   return tryProxy(0);
 }
 
+
+function renderAllocationBreakdownCharts(holdings){
+  var bySector = {}, byIndustry = {}, byCurrency = {}, byAssetClass = {};
+  var total = 0;
+  Object.keys(holdings).forEach(function(sym){
+    var h = holdings[sym];
+    if(h.qty <= 0.0001) return;
+    var price = currentPrices[sym] !== undefined ? currentPrices[sym] : (h.cost / h.qty);
+    var val = h.qty * price;
+    total += val;
+    var info = assetInfo[sym] || {};
+    var sector = info.sector || 'ยังไม่ระบุ';
+    var industry = info.industry || 'ยังไม่ระบุ';
+    var assetClass = info.assetClass || 'ยังไม่ระบุ';
+    var currency = getSymbolCurrency(sym) === 'USD' ? 'USD' : 'THB';
+    bySector[sector] = (bySector[sector]||0) + val;
+    byIndustry[industry] = (byIndustry[industry]||0) + val;
+    byAssetClass[assetClass] = (byAssetClass[assetClass]||0) + val;
+    byCurrency[currency] = (byCurrency[currency]||0) + val;
+  });
+  function toSegments(map){
+    return Object.keys(map).map(function(k, i){ return {label:k, value: total>0 ? (map[k]/total*100) : 0, color: DONUT_COLORS[i % DONUT_COLORS.length]}; });
+  }
+  renderDonutChart('alloc-sector-chart', toSegments(bySector));
+  renderDonutChart('alloc-industry-chart', toSegments(byIndustry));
+  renderDonutChart('alloc-currency-chart', toSegments(byCurrency));
+  renderDonutChart('alloc-assetclass-chart', toSegments(byAssetClass));
+}
+
+function renderAssetInfoTable(holdings){
+  var symbolSet = {};
+  Object.keys(holdings).forEach(function(sym){ if(holdings[sym].qty > 0.0001){ symbolSet[sym] = true; } });
+  Object.keys(assetInfo).forEach(function(sym){ symbolSet[sym] = true; });
+  var syms = Object.keys(symbolSet).sort();
+  var classOptions = ['', 'หุ้น', 'ETF', 'กองทุนรวม', 'REIT', 'ตราสารหนี้', 'ทองคำ', 'เงินสด', 'คริปโต', 'อื่นๆ'];
+  var rows = syms.map(function(sym){
+    var info = assetInfo[sym] || {};
+    var optionsHtml = classOptions.map(function(opt){
+      return '<option value="' + escapeAttr(opt) + '"' + ((info.assetClass||'') === opt ? ' selected' : '') + '>' + (opt || '- เลือก -') + '</option>';
+    }).join('');
+    return '<tr>' +
+      '<td style="font-weight:500;">' + escapeHtml(sym) + '</td>' +
+      '<td><input type="text" class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="sector" value="' + escapeAttr(info.sector||'') + '" placeholder="เช่น เทคโนโลยี" /></td>' +
+      '<td><input type="text" class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="industry" value="' + escapeAttr(info.industry||'') + '" placeholder="เช่น ธนาคาร" /></td>' +
+      '<td><select class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="assetClass">' + optionsHtml + '</select></td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('asset-info-body').innerHTML = rows || '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มีหุ้นในพอร์ต</td></tr>';
+  Array.prototype.forEach.call(document.querySelectorAll('.asset-info-input'), function(el){
+    el.addEventListener('change', function(){
+      var sym = this.getAttribute('data-symbol');
+      var field = this.getAttribute('data-field');
+      if(!assetInfo[sym]) assetInfo[sym] = {};
+      assetInfo[sym][field] = this.value;
+      saveData();
+      renderAllocationBreakdownCharts(computeHoldings());
+    });
+  });
+}
+
+function computeDividendForecastCalendar(){
+  var holdings = computeHoldings();
+  var heldSymbols = {};
+  Object.keys(holdings).forEach(function(sym){ if(holdings[sym].qty > 0.0001){ heldSymbols[sym] = true; } });
+
+  var histBySymMonth = {};
+  dividendEntries.forEach(function(d){
+    var m = parseInt(d.date.slice(5,7), 10);
+    if(!histBySymMonth[d.symbol]) histBySymMonth[d.symbol] = {};
+    if(!histBySymMonth[d.symbol][m]) histBySymMonth[d.symbol][m] = {sum:0, count:0};
+    histBySymMonth[d.symbol][m].sum += d.amount;
+    histBySymMonth[d.symbol][m].count += 1;
+  });
+
+  var manualBySymMonth = {};
+  dividendForecasts.forEach(function(f){
+    if(!manualBySymMonth[f.symbol]) manualBySymMonth[f.symbol] = {};
+    manualBySymMonth[f.symbol][f.month] = f;
+  });
+
+  var now = new Date();
+  var months = [];
+  for(var i = 0; i < 12; i++){
+    var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push({month: d.getMonth() + 1, label: d.toLocaleDateString('th-TH', {month:'short', year:'2-digit'})});
+  }
+
+  return months.map(function(mo){
+    var items = [];
+    var allSymbols = {};
+    Object.keys(heldSymbols).forEach(function(s){ allSymbols[s] = true; });
+    Object.keys(manualBySymMonth).forEach(function(s){ allSymbols[s] = true; });
+    Object.keys(allSymbols).forEach(function(sym){
+      var manual = manualBySymMonth[sym] && manualBySymMonth[sym][mo.month];
+      if(manual){
+        items.push({symbol: sym, amount: manual.amount, source: 'manual'});
+      } else {
+        var hist = histBySymMonth[sym] && histBySymMonth[sym][mo.month];
+        if(hist && hist.count > 0 && heldSymbols[sym]){
+          items.push({symbol: sym, amount: hist.sum / hist.count, source: 'auto'});
+        }
+      }
+    });
+    var total = items.reduce(function(s, it){ return s + it.amount; }, 0);
+    return {label: mo.label, items: items, total: total};
+  });
+}
+
+function renderDividendForecast(){
+  var calendar = computeDividendForecastCalendar();
+  var yearTotal = calendar.reduce(function(s, mo){ return s + mo.total; }, 0);
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">' +
+    calendar.map(function(mo){
+      var itemsHtml = mo.items.length ? mo.items.map(function(it){
+        return '<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--text-secondary);margin-top:2px;">' +
+          '<span>' + escapeHtml(it.symbol) + (it.source === 'manual' ? ' ✏️' : ' ~') + '</span>' +
+          '<span>' + fmt(it.amount) + '</span></div>';
+      }).join('') : '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">-</div>';
+      return '<div class="metric-card" style="padding:0.7rem 0.8rem;">' +
+        '<p class="metric-label" style="margin-bottom:2px;">' + escapeHtml(mo.label) + '</p>' +
+        '<p class="metric-value" style="font-size:16px;">' + fmt(mo.total) + '</p>' +
+        itemsHtml +
+        '</div>';
+    }).join('') +
+    '</div>';
+  document.getElementById('div-forecast-calendar').innerHTML = html;
+  document.getElementById('div-forecast-year-total').textContent = fmt(yearTotal) + ' บาท รวม 12 เดือนข้างหน้า';
+
+  var rows = dividendForecasts.slice().sort(function(a,b){ return a.month - b.month; }).map(function(f){
+    return '<tr>' +
+      '<td style="font-weight:500;">' + escapeHtml(f.symbol) + '</td>' +
+      '<td>' + THAI_MONTHS[f.month-1] + '</td>' +
+      '<td style="text-align:right;">' + fmt(f.amount) + '</td>' +
+      '<td>' + (f.note ? escapeHtml(f.note) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
+      '<td><button type="button" class="btn-del df-del" data-id="' + f.id + '">ลบ</button></td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('df-body').innerHTML = rows || '<tr><td colspan="5" style="color:var(--text-muted);">ยังไม่มีรายการคาดการณ์ที่กรอกเอง — ระบบจะประมาณให้อัตโนมัติจากประวัติปันผลย้อนหลังแทน</td></tr>';
+  Array.prototype.forEach.call(document.querySelectorAll('.df-del'), function(btn){
+    btn.addEventListener('click', function(){
+      var id = this.getAttribute('data-id');
+      dividendForecasts = dividendForecasts.filter(function(f){ return f.id !== id; });
+      render();
+    });
+  });
+}
+
 function render(){
   var holdings = computeHoldings();
   var dividends = dividendsBySymbol();
@@ -1765,6 +2022,7 @@ function render(){
       '<td style="text-align:right;">' + fmt(t.qty) + '</td>' +
       '<td style="text-align:right;">' + priceCell + '</td>' +
       '<td style="text-align:right;">' + fmt(t.qty * t.price) + '</td>' +
+      '<td style="text-align:right;color:var(--text-muted);">' + (txFee(t) > 0 ? fmt(txFee(t)) : '-') + '</td>' +
       '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (t.note ? escapeAttr(t.note) : '') + '">' + noteText + '</td>' +
       '<td style="text-align:right;white-space:nowrap;"><button type="button" class="edit-tx-btn btn-secondary" data-id="' + t.id + '" style="font-size:12px;padding:4px 8px;margin-right:4px;">แก้ไข</button><button type="button" class="del-btn btn-del" data-store="tx" data-id="' + t.id + '">ลบ</button></td>' +
       '</tr>';
@@ -1791,7 +2049,7 @@ function render(){
       '<td style="color:var(--text-secondary);">' + d.date + '</td>' +
       '<td style="font-weight:500;">' + escapeHtml(d.symbol) + '</td>' +
       '<td style="text-align:right;">' + fmt(d.amount) + '</td>' +
-      '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="div" data-id="' + d.id + '">ลบ</button></td>' +
+      '<td style="text-align:right;white-space:nowrap;"><button type="button" class="edit-div-btn btn-secondary" data-id="' + d.id + '" style="font-size:12px;padding:4px 8px;margin-right:4px;">แก้ไข</button><button type="button" class="del-btn btn-del" data-store="div" data-id="' + d.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
   document.getElementById('div-body').innerHTML = divRows || '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มีประวัติเงินปันผล</td></tr>';
@@ -1827,7 +2085,7 @@ function render(){
   }
 
   var label = benchmarkLabel();
-  document.getElementById('bench-label').textContent = 'ผลตอบแทน ' + label;
+  document.getElementById('bench-label').textContent = 'TWRR ' + label;
   document.getElementById('th-bench-col').textContent = label;
   document.getElementById('chart-bench-legend-text').textContent = label;
 
@@ -1843,15 +2101,23 @@ function render(){
   var navBenchEl = document.getElementById('m-nav-bench');
   var twrrUsdEl = document.getElementById('m-twrr-usd');
   var navPortUsdEl = document.getElementById('m-nav-port-usd');
+  var alphaUsdEl = document.getElementById('m-alpha-usd');
+  var fxRateEl = document.getElementById('m-fx-rate');
+
+  fxRateEl.textContent = referenceFxRate ? fmt(referenceFxRate) : '-';
 
   if(resultUsd){
     twrrUsdEl.textContent = fmtPct(resultUsd.twrr);
     twrrUsdEl.style.color = resultUsd.twrr >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
     var lastUsdPoint = resultUsd.series[resultUsd.series.length - 1];
     navPortUsdEl.textContent = fmt(100 * (1 + lastUsdPoint.twrrCum));
+    var alphaUsd = resultUsd.twrr - resultUsd.bench;
+    alphaUsdEl.textContent = fmtPct(alphaUsd);
+    alphaUsdEl.style.color = alphaUsd >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
   } else {
     twrrUsdEl.textContent = '-';
     navPortUsdEl.textContent = '-';
+    alphaUsdEl.textContent = '-';
   }
 
   if(result){
@@ -2045,6 +2311,9 @@ function render(){
     document.getElementById('alloc-compare-body').innerHTML = compareRows || '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มีหุ้นในพอร์ตหรือยังไม่ได้ตั้งเป้าหมาย</td></tr>';
   })();
 
+  renderAllocationBreakdownCharts(holdings);
+  renderAssetInfoTable(holdings);
+
   /* ---------- dividend bar chart ---------- */
   (function(){
     var byMonth = {};
@@ -2059,6 +2328,8 @@ function render(){
     });
     renderBarChart('div-bar-chart', points);
   })();
+
+  renderDividendForecast();
 
   /* ---------- price-compare stock/benchmark selectors ---------- */
   (function(){
@@ -2185,6 +2456,7 @@ document.getElementById('t-currency').addEventListener('change', function(){
   var isUsd = this.value === 'USD';
   document.getElementById('t-usd-fields').style.display = isUsd ? 'block' : 'none';
   document.getElementById('t-price').style.display = isUsd ? 'none' : 'block';
+  document.getElementById('t-fee').placeholder = isUsd ? 'ค่าธรรมเนียม (USD)' : 'ค่าธรรมเนียม (บาท)';
 });
 
 document.getElementById('t-fx-fetch').addEventListener('click', function(){
@@ -2212,6 +2484,7 @@ function resetTxForm(){
   document.getElementById('t-price').value = '';
   document.getElementById('t-price-usd').value = '';
   document.getElementById('t-fx-rate').value = '';
+  document.getElementById('t-fee').value = '';
   document.getElementById('t-date').value = '';
   document.getElementById('t-note').value = '';
   document.getElementById('t-currency').value = 'THB';
@@ -2240,6 +2513,7 @@ document.addEventListener('click', function(e){
   } else {
     document.getElementById('t-price').value = t.price;
   }
+  document.getElementById('t-fee').value = t.currency === 'USD' ? (t.feeForeign || '') : (t.fee || '');
   document.getElementById('t-date').value = t.date;
   document.getElementById('t-note').value = t.note || '';
   document.getElementById('t-add').textContent = 'บันทึกการแก้ไข';
@@ -2256,13 +2530,18 @@ document.getElementById('t-add').addEventListener('click', function(){
   var note = document.getElementById('t-note').value.trim();
 
   var price, priceForeign = null, fxRate = null;
+  var feeInput = parseFloat(document.getElementById('t-fee').value) || 0;
+  var fee, feeForeign = null;
   if(currency === 'USD'){
     priceForeign = parseFloat(document.getElementById('t-price-usd').value);
     fxRate = parseFloat(document.getElementById('t-fx-rate').value);
     if(!priceForeign || !fxRate || priceForeign <= 0 || fxRate <= 0){ window.alert('กรอกราคา USD และอัตราแลกเปลี่ยนให้ครบ'); return; }
     price = priceForeign * fxRate;
+    feeForeign = feeInput;
+    fee = feeInput * fxRate;
   } else {
     price = parseFloat(document.getElementById('t-price').value);
+    fee = feeInput;
   }
 
   if(!symbol || !qty || !price || qty <= 0 || price <= 0 || !date) return;
@@ -2271,14 +2550,14 @@ document.getElementById('t-add').addEventListener('click', function(){
     var existing = transactions.filter(function(x){ return x.id === editingTxId; })[0];
     if(existing){
       existing.symbol = symbol; existing.type = type; existing.qty = qty; existing.price = price;
-      existing.date = date; existing.note = note; existing.currency = currency;
-      if(currency === 'USD'){ existing.priceForeign = priceForeign; existing.fxRate = fxRate; }
-      else { delete existing.priceForeign; delete existing.fxRate; }
+      existing.date = date; existing.note = note; existing.currency = currency; existing.fee = fee;
+      if(currency === 'USD'){ existing.priceForeign = priceForeign; existing.fxRate = fxRate; existing.feeForeign = feeForeign; }
+      else { delete existing.priceForeign; delete existing.fxRate; delete existing.feeForeign; }
     }
   } else {
     txId++;
-    var record = {id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note, currency:currency};
-    if(currency === 'USD'){ record.priceForeign = priceForeign; record.fxRate = fxRate; }
+    var record = {id:'tx'+txId, symbol:symbol, type:type, qty:qty, price:price, date:date, note:note, currency:currency, fee:fee};
+    if(currency === 'USD'){ record.priceForeign = priceForeign; record.fxRate = fxRate; record.feeForeign = feeForeign; }
     transactions.push(record);
   }
 
@@ -2286,16 +2565,61 @@ document.getElementById('t-add').addEventListener('click', function(){
   render();
 });
 
+var editingDivId = null;
+
+function resetDivForm(){
+  editingDivId = null;
+  document.getElementById('d-symbol').value = '';
+  document.getElementById('d-amount').value = '';
+  document.getElementById('d-date').value = '';
+  document.getElementById('d-add').textContent = '+ เพิ่ม';
+  document.getElementById('d-cancel-edit').style.display = 'none';
+}
+
+document.getElementById('d-cancel-edit').addEventListener('click', resetDivForm);
+
+document.addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.edit-div-btn') : null;
+  if(!btn) return;
+  var id = btn.getAttribute('data-id');
+  var d = dividendEntries.filter(function(x){ return x.id === id; })[0];
+  if(!d) return;
+  editingDivId = id;
+  document.getElementById('d-symbol').value = d.symbol;
+  document.getElementById('d-amount').value = d.amount;
+  document.getElementById('d-date').value = d.date;
+  document.getElementById('d-add').textContent = 'บันทึกการแก้ไข';
+  document.getElementById('d-cancel-edit').style.display = 'inline-block';
+  document.getElementById('d-symbol').scrollIntoView({behavior:'smooth', block:'center'});
+});
+
 document.getElementById('d-add').addEventListener('click', function(){
   var symbol = document.getElementById('d-symbol').value.trim().toUpperCase();
   var amount = parseFloat(document.getElementById('d-amount').value);
   var date = document.getElementById('d-date').value;
   if(!symbol || !amount || amount <= 0 || !date) return;
-  divId++;
-  dividendEntries.push({id:'div'+divId, symbol:symbol, amount:amount, date:date});
-  document.getElementById('d-symbol').value = '';
-  document.getElementById('d-amount').value = '';
-  document.getElementById('d-date').value = '';
+  if(editingDivId){
+    var existing = dividendEntries.filter(function(x){ return x.id === editingDivId; })[0];
+    if(existing){ existing.symbol = symbol; existing.amount = amount; existing.date = date; }
+  } else {
+    divId++;
+    dividendEntries.push({id:'div'+divId, symbol:symbol, amount:amount, date:date});
+  }
+  resetDivForm();
+  render();
+});
+
+document.getElementById('df-add').addEventListener('click', function(){
+  var symbol = document.getElementById('df-symbol').value.trim().toUpperCase();
+  var month = parseInt(document.getElementById('df-month').value, 10);
+  var amount = parseFloat(document.getElementById('df-amount').value);
+  var note = document.getElementById('df-note').value.trim();
+  if(!symbol || !month || !amount || amount <= 0) return;
+  forecastId++;
+  dividendForecasts.push({id:'df'+forecastId, symbol:symbol, month:month, amount:amount, note:note});
+  document.getElementById('df-symbol').value = '';
+  document.getElementById('df-amount').value = '';
+  document.getElementById('df-note').value = '';
   render();
 });
 
@@ -2479,11 +2803,11 @@ document.getElementById('fetch-all-prices').addEventListener('click', function()
   if(syms.length === 0){ statusEl.textContent = 'ไม่มีหุ้นในพอร์ต'; return; }
   statusEl.textContent = 'กำลังดึงราคา ' + syms.length + ' รายการ...';
   var okCount = 0;
-  var fxCache = null; /* fetch USD/THB rate at most once per batch */
+  var fxCache = null; /* fetch USD/THB rate at most once per batch, reused as the reference rate too */
+  function getFxRate(){ return fxCache || (fxCache = fetchYahooPrice('THB=X')); }
   var promises = syms.map(function(sym){
     if(getSymbolCurrency(sym) === 'USD'){
-      var fxPromise = fxCache || (fxCache = fetchYahooPrice('THB=X'));
-      return Promise.all([fetchYahooPrice(sym), fxPromise]).then(function(results){
+      return Promise.all([fetchYahooPrice(sym), getFxRate()]).then(function(results){
         currentPricesForeign[sym] = {priceUSD: results[0], fxRate: results[1]};
         currentPrices[sym] = results[0] * results[1];
         okCount++;
@@ -2494,6 +2818,11 @@ document.getElementById('fetch-all-prices').addEventListener('click', function()
       okCount++;
     }).catch(function(){});
   });
+  /* ดึง USD/THB อ้างอิงเสมอ (ใช้แปลงมูลค่าพอร์ตเป็น USD ในหน้า Overview) ไม่ว่าพอร์ตจะมีหุ้น USD หรือไม่ */
+  promises.push(getFxRate().then(function(rate){
+    referenceFxRate = rate;
+    document.getElementById('ref-fx-input').value = rate.toFixed(4);
+  }).catch(function(){}));
   Promise.all(promises).then(function(){
     render();
     statusEl.textContent = 'สำเร็จ ' + okCount + '/' + syms.length + ' รายการ (อัปเดตเมื่อ ' + new Date().toLocaleTimeString('th-TH') + ')';
@@ -2561,6 +2890,27 @@ var savedTheme = 'light';
 try{ savedTheme = localStorage.getItem('investmentTrackerTheme') || 'light'; }catch(e){}
 applyTheme(savedTheme);
 updatePinButtons();
+
+/* ---------- tabs ---------- */
+var TAB_NAMES = ['overview', 'holdings', 'performance', 'dividends', 'allocation'];
+function switchTab(tabName){
+  TAB_NAMES.forEach(function(name){
+    var btn = document.getElementById('tab-btn-' + name);
+    var panel = document.getElementById('tab-' + name);
+    if(!btn || !panel) return;
+    if(name === tabName){ btn.classList.add('active'); panel.classList.add('active'); }
+    else { btn.classList.remove('active'); panel.classList.remove('active'); }
+  });
+  try{ localStorage.setItem('investmentTrackerActiveTab', tabName); }catch(e){}
+}
+TAB_NAMES.forEach(function(name){
+  var btn = document.getElementById('tab-btn-' + name);
+  if(btn){ btn.addEventListener('click', function(){ switchTab(name); }); }
+});
+var savedTab = 'overview';
+try{ savedTab = localStorage.getItem('investmentTrackerActiveTab') || 'overview'; }catch(e){}
+if(TAB_NAMES.indexOf(savedTab) === -1){ savedTab = 'overview'; }
+switchTab(savedTab);
 
 function initApp(){
   if(stateLoadedFrom !== 'firestore'){
