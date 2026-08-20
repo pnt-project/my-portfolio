@@ -224,7 +224,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต USD</p><p class="metric-value" id="m-alpha-usd">-</p></div>
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต THB</p><p class="metric-value" id="m-alpha">-</p></div>
-      <div class="metric-card" title="ผลต่าง TWRR สะสม USD ลบ TWRR สะสม THB — ถ้าเป็นบวก แปลว่าค่าเงินบาทอ่อนตัวลง (helping) ในช่วงที่ดู"><p class="metric-label">พอร์ต THB-USD</p><p class="metric-value" id="m-fx-rate">-</p></div>
+      <div class="metric-card" title="ผลต่าง TWRR สะสม THB ลบ TWRR สะสม USD — ถ้าเป็นบวก แปลว่าค่าเงินบาทแข็งค่าขึ้นในช่วงที่ดู"><p class="metric-label">พอร์ต THB-USD</p><p class="metric-value" id="m-fx-rate">-</p></div>
       <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
     </div>
     <div class="panel">
@@ -307,17 +307,17 @@
           <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
         </select>
         <select id="c-currency" style="grid-column:1/-1;">
-          <option value="THB">สกุลเงิน: บาท (THB)</option>
-          <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD)</option>
+          <option value="THB">กรอกเป็นบาท (THB)</option>
+          <option value="USD">กรอกเป็นดอลลาร์สหรัฐ (USD)</option>
         </select>
         <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (บาท)" style="grid-column:1/-1;" />
-        <div id="c-usd-fields" style="display:none;grid-column:1/-1;">
-          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;">
-            <input id="c-amount-usd" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (USD)" />
+        <input id="c-amount-usd" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (USD)" style="grid-column:1/-1;display:none;" />
+        <div style="grid-column:1/-1;">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
             <input id="c-fx-rate" type="number" min="0" step="0.0001" placeholder="อัตราแลกเปลี่ยน (บาท/USD)" />
             <button id="c-fx-fetch" type="button" class="btn-secondary" style="white-space:nowrap;">ดึงอัตรา</button>
           </div>
-          <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">จำนวนเงิน (บาท) = จำนวน USD × อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม</p>
+          <p id="c-fx-hint" style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">จำนวนเงิน (USD) = จำนวนบาท ÷ อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม และบันทึกไว้ทั้งสองสกุลเงิน</p>
         </div>
         <input id="c-date" type="date" style="grid-column:1/-1;" />
       </div>
@@ -347,6 +347,21 @@
   <table>
     <thead><tr><th>Benchmark</th><th style="text-align:right;">1M</th><th style="text-align:right;">3M</th><th style="text-align:right;">6M</th><th style="text-align:right;">YTD</th><th style="text-align:right;">1Yr</th><th style="text-align:right;">2Yr</th><th style="text-align:right;">5Yr</th><th style="text-align:right;">All</th><th style="text-align:right;">Annualized</th></tr></thead>
     <tbody id="trb-body"></tbody>
+  </table>
+  </div>
+</div>
+<div class="panel">
+  <p class="panel-title">📅 Historical Return รายเดือนเทียบกับ Benchmark</p>
+  <p class="panel-sub" style="margin-top:0;">ผลตอบแทนแบบ TWRR สรุปเป็นรายเดือน จากการไล่คำนวณ Snapshot ต่อเนื่องกัน (Snapshot ที่จบในเดือนไหน จะถูกนับเป็นผลตอบแทนของเดือนนั้น)</p>
+  <div id="hr-chart-container"></div>
+  <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--text-success);display:inline-block;border-radius:2px;"></span>พอร์ตของคุณ</span>
+    <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--text-secondary);display:inline-block;border-radius:2px;"></span>Benchmark รวม (ถ่วงน้ำหนัก)</span>
+  </div>
+  <div style="overflow-x:auto;margin-top:14px;">
+  <table>
+    <thead><tr><th>เดือน</th><th style="text-align:right;">พอร์ตของคุณ</th><th style="text-align:right;">Benchmark รวม</th><th style="text-align:right;">vs Benchmark</th></tr></thead>
+    <tbody id="hr-body"></tbody>
   </table>
   </div>
 </div>
@@ -1245,6 +1260,103 @@ function computeComponentReturnFull(startDate, componentId){
   return {r: factor - 1, firstDate: filtered[0].date, lastDate: filtered[filtered.length - 1].date};
 }
 
+function computeMonthlyReturns(){
+  var filtered = snapshots.slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  if(filtered.length < 2) return [];
+  var totalWeight = benchmarkComponents.reduce(function(s,b){ return s + (parseFloat(b.weight)||0); }, 0) || 100;
+  var byMonth = {};
+  for(var i=1; i<filtered.length; i++){
+    var prev = filtered[i-1], curr = filtered[i];
+    var cf = cfInRange(prev.date, curr.date, true);
+    var r = prev.value > 0 ? (curr.value - cf - prev.value) / prev.value : 0;
+    var rb = 0;
+    benchmarkComponents.forEach(function(b){
+      var pv = prev.benchValues ? prev.benchValues[b.id] : undefined;
+      var cv = curr.benchValues ? curr.benchValues[b.id] : undefined;
+      if(pv && cv && pv > 0){
+        rb += ((parseFloat(b.weight)||0) / totalWeight) * ((cv - pv) / pv);
+      }
+    });
+    var monthKey = curr.date.slice(0, 7);
+    if(!byMonth[monthKey]){ byMonth[monthKey] = {portFactor: 1, benchFactor: 1}; }
+    byMonth[monthKey].portFactor *= (1 + r);
+    byMonth[monthKey].benchFactor *= (1 + rb);
+  }
+  return Object.keys(byMonth).sort().reverse().map(function(k){
+    return {month: k, portRet: byMonth[k].portFactor - 1, benchRet: byMonth[k].benchFactor - 1};
+  });
+}
+
+function renderMonthlyReturnChart(containerId, dataPoints){
+  var container = document.getElementById(containerId);
+  if(!dataPoints || !dataPoints.length){
+    container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่มีข้อมูล — เพิ่ม Snapshot อย่างน้อย 2 จุดในเดือนต่าง ๆ เพื่อคำนวณ</p>';
+    return;
+  }
+  var chronological = dataPoints.slice().reverse();
+  var w = 680, h = 260, padL = 55, padR = 15, padT = 15, padB = 30;
+  var maxAbs = Math.max.apply(null, chronological.map(function(d){ return Math.max(Math.abs(d.portRet||0), Math.abs(d.benchRet||0)); }));
+  if(maxAbs <= 0){ maxAbs = 0.01; }
+  maxAbs *= 1.2;
+  var plotH = h - padT - padB;
+  function yPos(v){ return padT + plotH * (1 - (v + maxAbs) / (2 * maxAbs)); }
+  var zeroYPix = yPos(0);
+
+  var slot = (w - padL - padR) / chronological.length;
+  var groupWidth = Math.min(46, slot * 0.7);
+  var barWidth = groupWidth / 2 - 2;
+
+  var gridLines = [maxAbs, maxAbs/2, 0, -maxAbs/2, -maxAbs].map(function(v){
+    var y = yPos(v);
+    return '<line x1="' + padL + '" y1="' + y + '" x2="' + (w - padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1" />' +
+      '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" font-size="10" fill="var(--text-muted)" text-anchor="end">' + fmtPct(v) + '</text>';
+  }).join('');
+
+  var bars = chronological.map(function(d, i){
+    var gx = padL + slot * i + (slot - groupWidth) / 2;
+    var portY = d.portRet >= 0 ? yPos(d.portRet) : zeroYPix;
+    var portH = Math.max(Math.abs(yPos(d.portRet) - zeroYPix), 0.5);
+    var benchY = d.benchRet >= 0 ? yPos(d.benchRet) : zeroYPix;
+    var benchH = Math.max(Math.abs(yPos(d.benchRet) - zeroYPix), 0.5);
+    var portColor = d.portRet >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    return '<rect x="' + gx + '" y="' + portY + '" width="' + barWidth + '" height="' + portH + '" fill="' + portColor + '" rx="2"><title>' + d.month + ' พอร์ต: ' + fmtPct(d.portRet) + '</title></rect>' +
+      '<rect x="' + (gx + barWidth + 2) + '" y="' + benchY + '" width="' + barWidth + '" height="' + benchH + '" fill="var(--text-secondary)" rx="2"><title>' + d.month + ' Benchmark: ' + fmtPct(d.benchRet) + '</title></rect>' +
+      '<text x="' + (gx + groupWidth / 2) + '" y="' + (h - padB + 16) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle">' + d.month + '</text>';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' +
+    gridLines +
+    '<line x1="' + padL + '" y1="' + zeroYPix + '" x2="' + (w - padR) + '" y2="' + zeroYPix + '" stroke="var(--border-strong)" stroke-width="1" />' +
+    bars +
+    '</svg>';
+  container.innerHTML = svg;
+}
+
+function renderHistoricalReturnPanel(){
+  var tbody = document.getElementById('hr-body');
+  if(!tbody) return;
+  var monthly = computeMonthlyReturns();
+  renderMonthlyReturnChart('hr-chart-container', monthly);
+  var html = monthly.map(function(d){
+    var excess = d.portRet - d.benchRet;
+    return '<tr>' +
+      '<td style="color:var(--text-secondary);">' + d.month + '</td>' +
+      '<td style="text-align:right;color:' + (d.portRet >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(d.portRet) + '</td>' +
+      '<td style="text-align:right;color:' + (d.benchRet >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(d.benchRet) + '</td>' +
+      '<td style="text-align:right;color:' + (excess >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(excess) + '</td>' +
+      '</tr>';
+  }).join('');
+  tbody.innerHTML = html || '<tr><td colspan="4" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดในเดือนต่าง ๆ เพื่อคำนวณ</td></tr>';
+}
+
+function earliestSnapshotDate(componentId){
+  var relevant = snapshots.filter(function(s){
+    return componentId ? (s.benchValues && s.benchValues[componentId] !== undefined && s.benchValues[componentId] !== null && s.benchValues[componentId] !== '') : true;
+  });
+  if(!relevant.length) return null;
+  return relevant.reduce(function(min, s){ return (!min || s.date < min) ? s.date : min; }, null);
+}
+
 function renderTotalReturnTable(){
   var tbody = document.getElementById('trb-body');
   if(!tbody) return;
@@ -1262,8 +1374,14 @@ function renderTotalReturnTable(){
     {key:'All', start: null}
   ];
 
-  function buildRow(label, calcFn){
-    var outs = periods.map(function(p){ return calcFn(p.start); });
+  /* A period only gets a value if there's actual snapshot data at or before that
+     period's start date — otherwise the "window" just silently shrinks to whatever
+     data exists and would misleadingly look like a full 1Yr/5Yr/etc. return. */
+  function buildRow(label, calcFn, earliestDate){
+    var outs = periods.map(function(p){
+      if(p.start && (!earliestDate || earliestDate > p.start)) return null;
+      return calcFn(p.start);
+    });
     var cells = outs.map(function(o){ return o ? o.r : null; });
     var allOut = outs[outs.length - 1];
     var annualized = null;
@@ -1275,17 +1393,18 @@ function renderTotalReturnTable(){
   }
 
   var rows = [];
+  var portfolioEarliest = earliestSnapshotDate(null);
   rows.push(buildRow('Portfolio', function(startDate){
     var res = computeSeries(startDate, null, true);
     if(!res) return null;
     return {r: res.twrr, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
-  }));
+  }, portfolioEarliest));
 
   var activeComponents = benchmarkComponents.filter(function(b){ return (b.name || '').trim() !== ''; });
   activeComponents.forEach(function(comp){
     rows.push(buildRow(comp.name, function(startDate){
       return computeComponentReturnFull(startDate, comp.id);
-    }));
+    }, earliestSnapshotDate(comp.id)));
   });
 
   if(activeComponents.length){
@@ -1293,7 +1412,7 @@ function renderTotalReturnTable(){
       var res = computeSeries(startDate, null, true);
       if(!res) return null;
       return {r: res.bench, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
-    }));
+    }, portfolioEarliest));
   }
 
   var html = rows.map(function(row){
@@ -2298,7 +2417,7 @@ function render(){
   var cashRows = cashFlows.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(c){
     var isDeposit = c.type === 'deposit';
     var amountCell = fmt(c.amount);
-    if(c.currency === 'USD' && c.amountForeign){
+    if(c.amountForeign){
       amountCell = fmt(c.amount) + '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(c.amountForeign) + ' × ' + fmt(c.fxRate) + ')</span>';
     }
     return '<tr>' +
@@ -2380,9 +2499,9 @@ function render(){
   var fxRateEl = document.getElementById('m-fx-rate');
 
   if(result && resultUsd){
-    var usdThbDiff = resultUsd.twrr - result.twrr;
-    fxRateEl.textContent = fmtPct(usdThbDiff);
-    fxRateEl.style.color = usdThbDiff >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    var thbUsdDiff = result.twrr - resultUsd.twrr;
+    fxRateEl.textContent = fmtPct(thbUsdDiff);
+    fxRateEl.style.color = thbUsdDiff >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
   } else {
     fxRateEl.textContent = '-';
     fxRateEl.style.color = '';
@@ -2634,6 +2753,7 @@ function render(){
   })();
 
   renderTotalReturnTable();
+  renderHistoricalReturnPanel();
 
   saveData();
 }
@@ -2960,8 +3080,11 @@ document.getElementById('df-add').addEventListener('click', function(){
 
 document.getElementById('c-currency').addEventListener('change', function(){
   var isUsd = this.value === 'USD';
-  document.getElementById('c-usd-fields').style.display = isUsd ? 'block' : 'none';
   document.getElementById('c-amount').style.display = isUsd ? 'none' : 'block';
+  document.getElementById('c-amount-usd').style.display = isUsd ? 'block' : 'none';
+  document.getElementById('c-fx-hint').textContent = isUsd
+    ? 'จำนวนเงิน (บาท) = จำนวน USD × อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม และบันทึกไว้ทั้งสองสกุลเงิน'
+    : 'จำนวนเงิน (USD) = จำนวนบาท ÷ อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม และบันทึกไว้ทั้งสองสกุลเงิน';
 });
 
 document.getElementById('c-fx-fetch').addEventListener('click', function(){
@@ -3006,12 +3129,9 @@ document.addEventListener('click', function(e){
   document.getElementById('c-type').value = c.type;
   document.getElementById('c-currency').value = c.currency === 'USD' ? 'USD' : 'THB';
   document.getElementById('c-currency').dispatchEvent(new Event('change'));
-  if(c.currency === 'USD'){
-    document.getElementById('c-amount-usd').value = c.amountForeign || '';
-    document.getElementById('c-fx-rate').value = c.fxRate || '';
-  } else {
-    document.getElementById('c-amount').value = c.amount;
-  }
+  document.getElementById('c-amount').value = c.amount || '';
+  document.getElementById('c-amount-usd').value = c.amountForeign || '';
+  document.getElementById('c-fx-rate').value = c.fxRate || '';
   document.getElementById('c-date').value = c.date;
   document.getElementById('c-add').textContent = 'บันทึกการแก้ไข';
   document.getElementById('c-cancel-edit').style.display = 'inline-block';
@@ -3022,15 +3142,17 @@ document.getElementById('c-add').addEventListener('click', function(){
   var type = document.getElementById('c-type').value;
   var currency = document.getElementById('c-currency').value;
   var date = document.getElementById('c-date').value;
+  var fxRate = parseFloat(document.getElementById('c-fx-rate').value);
 
-  var amount, amountForeign = null, fxRate = null;
+  var amount, amountForeign;
   if(currency === 'USD'){
     amountForeign = parseFloat(document.getElementById('c-amount-usd').value);
-    fxRate = parseFloat(document.getElementById('c-fx-rate').value);
     if(!amountForeign || !fxRate || amountForeign <= 0 || fxRate <= 0){ window.alert('กรอกจำนวนเงิน USD และอัตราแลกเปลี่ยนให้ครบ'); return; }
     amount = amountForeign * fxRate;
   } else {
     amount = parseFloat(document.getElementById('c-amount').value);
+    if(!amount || !fxRate || amount <= 0 || fxRate <= 0){ window.alert('กรอกจำนวนเงินบาทและอัตราแลกเปลี่ยนให้ครบ'); return; }
+    amountForeign = amount / fxRate;
   }
 
   if(!amount || amount <= 0 || !date) return;
@@ -3039,13 +3161,11 @@ document.getElementById('c-add').addEventListener('click', function(){
     var existing = cashFlows.filter(function(x){ return x.id === editingCashId; })[0];
     if(existing){
       existing.type = type; existing.amount = amount; existing.date = date; existing.currency = currency;
-      if(currency === 'USD'){ existing.amountForeign = amountForeign; existing.fxRate = fxRate; }
-      else { delete existing.amountForeign; delete existing.fxRate; }
+      existing.amountForeign = amountForeign; existing.fxRate = fxRate;
     }
   } else {
     cashId++;
-    var record = {id:'cash'+cashId, type:type, amount:amount, date:date, currency:currency};
-    if(currency === 'USD'){ record.amountForeign = amountForeign; record.fxRate = fxRate; }
+    var record = {id:'cash'+cashId, type:type, amount:amount, date:date, currency:currency, amountForeign:amountForeign, fxRate:fxRate};
     cashFlows.push(record);
   }
 
