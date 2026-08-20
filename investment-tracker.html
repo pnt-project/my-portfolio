@@ -86,6 +86,13 @@
   @media (min-width: 900px) {
     .it-wrap .tab-layout.with-side { grid-template-columns: 340px 1fr; }
   }
+  .it-wrap .app-shell { display:grid; grid-template-columns:1fr; gap:16px; align-items:start; }
+  .it-wrap .app-sidebar { display:flex; flex-direction:column; gap:16px; }
+  .it-wrap .app-sidebar .panel { margin-bottom:0; }
+  @media (min-width: 1000px) {
+    .it-wrap .app-shell { grid-template-columns: 280px 1fr; }
+    .it-wrap .app-sidebar { position:sticky; top:16px; }
+  }
 </style>
 </head>
 <body>
@@ -117,6 +124,8 @@
 
 <p class="panel-sub" style="margin:-8px 0 1rem;">PIN ใช้ล็อกหน้าจอบนเครื่องนี้เท่านั้น (ไม่ใช่การเข้ารหัสระดับสูง ป้องกันคนเผลอเปิดดูมือถือ/คอมคุณ) ส่วนบัญชีอีเมลด้านล่างใช้ sync ข้อมูลข้ามเครื่อง</p>
 
+<div class="app-shell">
+<aside class="app-sidebar">
 <div class="panel">
   <p class="panel-title">📁 พอร์ตการลงทุน</p>
   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
@@ -152,8 +161,9 @@
 </div>
 
 <div id="auto-price-banner" class="panel" style="display:none;background:var(--bg-accent);"></div>
+</aside>
 
-
+<main class="app-main">
 <div class="tab-nav">
   <button type="button" class="tab-btn" id="tab-btn-overview">🏠 Overview</button>
   <button type="button" class="tab-btn" id="tab-btn-holdings">💼 Holdings</button>
@@ -216,7 +226,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต USD</p><p class="metric-value" id="m-alpha-usd">-</p></div>
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต THB</p><p class="metric-value" id="m-alpha">-</p></div>
-      <div class="metric-card"><p class="metric-label">พอร์ต USD-THB</p><p class="metric-value" id="m-fx-rate">-</p></div>
+      <div class="metric-card" title="ผลต่าง TWRR สะสม USD ลบ TWRR สะสม THB — ถ้าเป็นบวก แปลว่าค่าเงินบาทอ่อนตัวลง (helping) ในช่วงที่ดู"><p class="metric-label">พอร์ต USD-THB</p><p class="metric-value" id="m-fx-rate">-</p></div>
       <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
     </div>
     <div class="panel">
@@ -426,7 +436,19 @@
       <p class="panel-title">🪙 เงินปันผล</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <input id="d-symbol" placeholder="สัญลักษณ์หุ้น" />
-        <input id="d-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงินรวม" />
+        <select id="d-currency" style="grid-column:1/-1;">
+          <option value="THB">สกุลเงิน: บาท (THB)</option>
+          <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD)</option>
+        </select>
+        <input id="d-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงินรวม (บาท)" style="grid-column:1/-1;" />
+        <div id="d-usd-fields" style="display:none;grid-column:1/-1;">
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;">
+            <input id="d-amount-usd" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (USD)" />
+            <input id="d-fx-rate" type="number" min="0" step="0.0001" placeholder="อัตราแลกเปลี่ยน (บาท/USD)" />
+            <button id="d-fx-fetch" type="button" class="btn-secondary" style="white-space:nowrap;">ดึงอัตรา</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">จำนวนเงิน (บาท) = จำนวนเงิน USD × อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม</p>
+        </div>
         <input id="d-date" type="date" style="grid-column:1/-1;" />
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
@@ -475,7 +497,7 @@
   <div id="div-bar-chart"></div>
   <div style="overflow-x:auto;margin-top:12px;">
   <table>
-    <thead><tr><th>วันที่</th><th>หุ้น</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
+    <thead><tr><th>วันที่</th><th>หุ้น</th><th style="text-align:right;">จำนวนเงิน (บาท)</th><th></th></tr></thead>
     <tbody id="div-body"></tbody>
   </table>
   </div>
@@ -533,6 +555,9 @@
       </div>
     </div>
 
+</div>
+
+</main>
 </div>
 
 </div>
@@ -1006,6 +1031,19 @@ function dividendsBySymbol(){
   return out;
 }
 
+/* per-symbol dividends received expressed in native USD: sums USD-tagged entries directly,
+   and converts THB-tagged entries via today's reference rate (best available approximation) */
+function dividendsBySymbolUsd(){
+  var out = {};
+  dividendEntries.forEach(function(d){
+    var usdAmount = d.currency === 'USD' && d.amountForeign !== undefined
+      ? d.amountForeign
+      : (referenceFxRate ? d.amount / referenceFxRate : 0);
+    out[d.symbol] = (out[d.symbol]||0) + usdAmount;
+  });
+  return out;
+}
+
 function getSymbolCurrency(sym){
   if(currencyOverrides[sym]){ return currencyOverrides[sym]; }
   var latest = null;
@@ -1302,6 +1340,77 @@ function fetchYahooHistory(symbol, range){
 }
 
 /* ---------- generic date-based multi-line % chart (used by stock-vs-benchmark) ---------- */
+/* ---------- shared hover-tooltip helper for line charts ---------- */
+function attachChartTooltip(container, svgEl, hitPoints){
+  if(!svgEl || !hitPoints.length) return;
+  var tooltip = document.createElement('div');
+  tooltip.style.cssText = 'position:absolute;pointer-events:none;display:none;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.18);white-space:nowrap;z-index:20;color:var(--text-primary);line-height:1.5;';
+  container.style.position = 'relative';
+  container.appendChild(tooltip);
+
+  var hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  hoverLine.setAttribute('stroke', 'var(--text-muted)');
+  hoverLine.setAttribute('stroke-width', '1');
+  hoverLine.setAttribute('stroke-dasharray', '3,3');
+  hoverLine.style.display = 'none';
+  svgEl.appendChild(hoverLine);
+
+  var markerEls = [];
+
+  function findNearest(relX){
+    var nearest = hitPoints[0], nearestDist = Infinity;
+    hitPoints.forEach(function(p){
+      var d = Math.abs(p.x - relX);
+      if(d < nearestDist){ nearestDist = d; nearest = p; }
+    });
+    return nearest;
+  }
+
+  function onMove(evt){
+    var rect = svgEl.getBoundingClientRect();
+    if(!rect.width) return;
+    var clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    var clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    var vb = svgEl.viewBox.baseVal;
+    var relX = (clientX - rect.left) / rect.width * vb.width;
+    var p = findNearest(relX);
+    if(!p) return;
+
+    hoverLine.setAttribute('x1', p.x); hoverLine.setAttribute('x2', p.x);
+    hoverLine.setAttribute('y1', 0); hoverLine.setAttribute('y2', vb.height);
+    hoverLine.style.display = 'block';
+
+    markerEls.forEach(function(m){ m.remove(); });
+    markerEls = (p.markers || []).map(function(m){
+      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', m.x); c.setAttribute('cy', m.y); c.setAttribute('r', 5);
+      c.setAttribute('fill', m.color); c.setAttribute('stroke', 'var(--surface)'); c.setAttribute('stroke-width', 1.5);
+      svgEl.appendChild(c);
+      return c;
+    });
+
+    tooltip.innerHTML = p.tooltipHtml;
+    tooltip.style.display = 'block';
+    var left = (clientX - rect.left) + 14;
+    var top = (clientY - rect.top) - 10;
+    if(left + 180 > rect.width){ left = (clientX - rect.left) - 190; }
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = Math.max(0, top) + 'px';
+  }
+
+  function onLeave(){
+    hoverLine.style.display = 'none';
+    markerEls.forEach(function(m){ m.remove(); });
+    markerEls = [];
+    tooltip.style.display = 'none';
+  }
+
+  svgEl.addEventListener('mousemove', onMove);
+  svgEl.addEventListener('mouseleave', onLeave);
+  svgEl.addEventListener('touchmove', onMove, {passive: true});
+  svgEl.addEventListener('touchend', onLeave);
+}
+
 function renderTimeSeriesChart(containerId, seriesList){
   var container = document.getElementById(containerId);
   var valid = seriesList.filter(function(s){ return s.points && s.points.length; });
@@ -1344,12 +1453,37 @@ function renderTimeSeriesChart(containerId, seriesList){
     return '<polyline points="' + pts + '" fill="none" stroke="' + s.color + '" stroke-width="2.5" ' + (s.dash ? 'stroke-dasharray="5,4"' : '') + ' />';
   }).join('');
 
-  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' +
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;display:block;">' +
     gridLines +
     '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (w - padR) + '" y2="' + zeroY + '" stroke="var(--border-strong)" stroke-width="1" />' +
     lines + xLabels +
     '</svg>';
   container.innerHTML = svg;
+
+  var allPointsFlat = [];
+  valid.forEach(function(s){
+    s.points.forEach(function(p){
+      allPointsFlat.push({x: xPos(new Date(p.date + 'T00:00:00').getTime()), date: p.date, label: s.label, pct: p.pct, color: s.color});
+    });
+  });
+  var byX = {};
+  allPointsFlat.forEach(function(p){
+    var key = Math.round(p.x);
+    if(!byX[key]) byX[key] = {x: p.x, date: p.date, items: []};
+    byX[key].items.push(p);
+  });
+  var hitPoints = Object.keys(byX).map(function(key){
+    var bucket = byX[key];
+    var lines = bucket.items.map(function(it){
+      return '<div style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:' + it.color + ';display:inline-block;"></span>' + escapeHtml(it.label || '') + ': ' + (it.pct * 100).toFixed(2) + '%</div>';
+    }).join('');
+    return {
+      x: bucket.x,
+      markers: bucket.items.map(function(it){ return {x: bucket.x, y: yPos(it.pct), color: it.color}; }),
+      tooltipHtml: '<div style="font-weight:600;margin-bottom:3px;">' + bucket.date + '</div>' + lines
+    };
+  });
+  attachChartTooltip(container, container.querySelector('svg'), hitPoints);
 }
 
 /* ---------- generic bar chart (used by dividend history) ---------- */
@@ -1472,7 +1606,7 @@ function renderChart(series){
            '<circle cx="' + xPos(i) + '" cy="' + yPos(p.benchCum) + '" r="3" fill="var(--text-secondary)" />';
   }).join('');
 
-  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' +
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;display:block;">' +
     gridLines +
     '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (w - padR) + '" y2="' + zeroY + '" stroke="var(--border-strong)" stroke-width="1" />' +
     '<polyline points="' + benchPoints + '" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-dasharray="5,4" />' +
@@ -1482,6 +1616,22 @@ function renderChart(series){
     '</svg>';
 
   container.innerHTML = svg;
+
+  var benchLbl = document.getElementById('chart-bench-legend-text');
+  var benchLabelText = benchLbl ? benchLbl.textContent : 'Benchmark';
+  var hitPoints = series.map(function(p, i){
+    return {
+      x: xPos(i),
+      markers: [
+        {x: xPos(i), y: yPos(p.twrrCum), color: 'var(--text-accent)'},
+        {x: xPos(i), y: yPos(p.benchCum), color: 'var(--text-secondary)'}
+      ],
+      tooltipHtml: '<div style="font-weight:600;margin-bottom:3px;">' + p.date + '</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--text-accent);display:inline-block;"></span>พอร์ตของคุณ: ' + (p.twrrCum * 100).toFixed(2) + '%</div>' +
+        '<div style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span>' + escapeHtml(benchLabelText) + ': ' + (p.benchCum * 100).toFixed(2) + '%</div>'
+    };
+  });
+  attachChartTooltip(container, container.querySelector('svg'), hitPoints);
 }
 
 function renderBenchRows(){
@@ -1901,7 +2051,9 @@ function renderDividendForecast(){
 function render(){
   var holdings = computeHoldings();
   var dividends = dividendsBySymbol();
+  var dividendsUsd = dividendsBySymbolUsd();
   var totalInvested = 0, totalValue = 0, totalPnl = 0, totalDiv = 0;
+  var totalInvestedUsd = 0, totalValueUsd = 0, totalDivUsd = 0; /* summed from each holding's NATIVE usd cost/value, not derived by dividing the THB total */
 
   var rows = '';
   Object.keys(holdings).forEach(function(sym){
@@ -1909,6 +2061,7 @@ function render(){
     if(h.qty <= 0.0001) return;
     var avgCost = h.cost / h.qty;
     var divRecv = dividends[sym] || 0;
+    var divRecvUsd = dividendsUsd[sym] || 0;
     var curPrice = currentPrices[sym] !== undefined ? currentPrices[sym] : avgCost;
     var value = h.qty * curPrice;
     var pnl = value - h.cost + divRecv;
@@ -1919,6 +2072,7 @@ function render(){
     totalValue += value;
     totalPnl += pnl;
     totalDiv += divRecv;
+    totalDivUsd += divRecvUsd;
 
     var isUsd = getSymbolCurrency(sym) === 'USD';
     var avgCostUsd = (isUsd && h.costUsd > 0) ? h.costUsd / h.qty : null;
@@ -1928,10 +2082,15 @@ function render(){
     if(isUsd && currentPricesForeign[sym] && currentPricesForeign[sym].priceUSD){
       valueUsdNative = h.qty * currentPricesForeign[sym].priceUSD;
       if(avgCostUsd !== null){
-        pnlUsdNative = valueUsdNative - h.costUsd + (divRecv && referenceFxRate ? divRecv / referenceFxRate : 0);
+        pnlUsdNative = valueUsdNative - h.costUsd + divRecvUsd;
         pnlPercentUsd = h.costUsd > 0 ? (pnlUsdNative / h.costUsd) * 100 : 0;
       }
     }
+
+    /* native USD totals: use each symbol's own USD cost/value when available (accurate),
+       only fall back to converting THB via today's reference rate for THB-native holdings */
+    totalInvestedUsd += (isUsd && avgCostUsd !== null) ? h.costUsd : (referenceFxRate ? h.cost / referenceFxRate : 0);
+    totalValueUsd += (isUsd && valueUsdNative !== null) ? valueUsdNative : (referenceFxRate ? value / referenceFxRate : 0);
 
     var valueUsdCell, valueThbCell, pnlUsdCell;
     if(isUsd){
@@ -2045,10 +2204,14 @@ function render(){
   netCashEl.style.color = netCash >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
 
   var divRows = dividendEntries.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(d){
+    var amountCell = fmt(d.amount);
+    if(d.currency === 'USD' && d.amountForeign){
+      amountCell = fmt(d.amount) + '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(d.amountForeign) + ' × ' + fmt(d.fxRate) + ')</span>';
+    }
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + d.date + '</td>' +
-      '<td style="font-weight:500;">' + escapeHtml(d.symbol) + '</td>' +
-      '<td style="text-align:right;">' + fmt(d.amount) + '</td>' +
+      '<td style="font-weight:500;">' + escapeHtml(d.symbol) + (d.currency === 'USD' ? ' <span style="font-size:10px;color:var(--text-accent);border:1px solid var(--text-accent);border-radius:4px;padding:1px 4px;">USD</span>' : '') + '</td>' +
+      '<td style="text-align:right;">' + amountCell + '</td>' +
       '<td style="text-align:right;white-space:nowrap;"><button type="button" class="edit-div-btn btn-secondary" data-id="' + d.id + '" style="font-size:12px;padding:4px 8px;margin-right:4px;">แก้ไข</button><button type="button" class="del-btn btn-del" data-store="div" data-id="' + d.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
@@ -2066,12 +2229,13 @@ function render(){
   }
   var pnlUsdEl = document.getElementById('m-pnl-usd');
   var netCashUsdEl = document.getElementById('m-netcash-usd');
+  var totalPnlUsd = totalValueUsd - totalInvestedUsd + totalDivUsd;
   if(referenceFxRate && referenceFxRate > 0){
-    document.getElementById('m-invested-usd').textContent = '≈ $' + fmt(totalInvested / referenceFxRate);
-    document.getElementById('m-value-usd').textContent = '≈ $' + fmt(totalValue / referenceFxRate);
-    pnlUsdEl.textContent = '≈ $' + fmt(totalPnl / referenceFxRate);
-    pnlUsdEl.style.color = totalPnl >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
-    document.getElementById('m-div-usd').textContent = '≈ $' + fmt(totalDiv / referenceFxRate);
+    document.getElementById('m-invested-usd').textContent = '$' + fmt(totalInvestedUsd);
+    document.getElementById('m-value-usd').textContent = '$' + fmt(totalValueUsd);
+    pnlUsdEl.textContent = '$' + fmt(totalPnlUsd);
+    pnlUsdEl.style.color = totalPnlUsd >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    document.getElementById('m-div-usd').textContent = '$' + fmt(totalDivUsd);
     netCashUsdEl.textContent = (netCash>=0?'+':'') + '≈ $' + fmt(netCash / referenceFxRate);
     netCashUsdEl.style.color = netCash >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
   } else {
@@ -2104,7 +2268,14 @@ function render(){
   var alphaUsdEl = document.getElementById('m-alpha-usd');
   var fxRateEl = document.getElementById('m-fx-rate');
 
-  fxRateEl.textContent = referenceFxRate ? fmt(referenceFxRate) : '-';
+  if(result && resultUsd){
+    var usdThbDiff = resultUsd.twrr - result.twrr;
+    fxRateEl.textContent = fmtPct(usdThbDiff);
+    fxRateEl.style.color = usdThbDiff >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+  } else {
+    fxRateEl.textContent = '-';
+    fxRateEl.style.color = '';
+  }
 
   if(resultUsd){
     twrrUsdEl.textContent = fmtPct(resultUsd.twrr);
@@ -2571,12 +2742,37 @@ function resetDivForm(){
   editingDivId = null;
   document.getElementById('d-symbol').value = '';
   document.getElementById('d-amount').value = '';
+  document.getElementById('d-amount-usd').value = '';
+  document.getElementById('d-fx-rate').value = '';
   document.getElementById('d-date').value = '';
+  document.getElementById('d-currency').value = 'THB';
+  document.getElementById('d-currency').dispatchEvent(new Event('change'));
   document.getElementById('d-add').textContent = '+ เพิ่ม';
   document.getElementById('d-cancel-edit').style.display = 'none';
 }
 
 document.getElementById('d-cancel-edit').addEventListener('click', resetDivForm);
+
+document.getElementById('d-currency').addEventListener('change', function(){
+  var isUsd = this.value === 'USD';
+  document.getElementById('d-usd-fields').style.display = isUsd ? 'block' : 'none';
+  document.getElementById('d-amount').style.display = isUsd ? 'none' : 'block';
+});
+
+document.getElementById('d-fx-fetch').addEventListener('click', function(){
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    document.getElementById('d-fx-rate').value = rate.toFixed(4);
+  }).catch(function(){
+    window.alert('ดึงอัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+});
 
 document.addEventListener('click', function(e){
   var btn = e.target.closest ? e.target.closest('.edit-div-btn') : null;
@@ -2586,7 +2782,14 @@ document.addEventListener('click', function(e){
   if(!d) return;
   editingDivId = id;
   document.getElementById('d-symbol').value = d.symbol;
-  document.getElementById('d-amount').value = d.amount;
+  document.getElementById('d-currency').value = d.currency === 'USD' ? 'USD' : 'THB';
+  document.getElementById('d-currency').dispatchEvent(new Event('change'));
+  if(d.currency === 'USD'){
+    document.getElementById('d-amount-usd').value = d.amountForeign || '';
+    document.getElementById('d-fx-rate').value = d.fxRate || '';
+  } else {
+    document.getElementById('d-amount').value = d.amount;
+  }
   document.getElementById('d-date').value = d.date;
   document.getElementById('d-add').textContent = 'บันทึกการแก้ไข';
   document.getElementById('d-cancel-edit').style.display = 'inline-block';
@@ -2595,15 +2798,33 @@ document.addEventListener('click', function(e){
 
 document.getElementById('d-add').addEventListener('click', function(){
   var symbol = document.getElementById('d-symbol').value.trim().toUpperCase();
-  var amount = parseFloat(document.getElementById('d-amount').value);
+  var currency = document.getElementById('d-currency').value;
   var date = document.getElementById('d-date').value;
+
+  var amount, amountForeign = null, fxRate = null;
+  if(currency === 'USD'){
+    amountForeign = parseFloat(document.getElementById('d-amount-usd').value);
+    fxRate = parseFloat(document.getElementById('d-fx-rate').value);
+    if(!amountForeign || !fxRate || amountForeign <= 0 || fxRate <= 0){ window.alert('กรอกจำนวนเงิน USD และอัตราแลกเปลี่ยนให้ครบ'); return; }
+    amount = amountForeign * fxRate;
+  } else {
+    amount = parseFloat(document.getElementById('d-amount').value);
+  }
+
   if(!symbol || !amount || amount <= 0 || !date) return;
+
   if(editingDivId){
     var existing = dividendEntries.filter(function(x){ return x.id === editingDivId; })[0];
-    if(existing){ existing.symbol = symbol; existing.amount = amount; existing.date = date; }
+    if(existing){
+      existing.symbol = symbol; existing.amount = amount; existing.date = date; existing.currency = currency;
+      if(currency === 'USD'){ existing.amountForeign = amountForeign; existing.fxRate = fxRate; }
+      else { delete existing.amountForeign; delete existing.fxRate; }
+    }
   } else {
     divId++;
-    dividendEntries.push({id:'div'+divId, symbol:symbol, amount:amount, date:date});
+    var record = {id:'div'+divId, symbol:symbol, amount:amount, date:date, currency:currency};
+    if(currency === 'USD'){ record.amountForeign = amountForeign; record.fxRate = fxRate; }
+    dividendEntries.push(record);
   }
   resetDivForm();
   render();
