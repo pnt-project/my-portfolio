@@ -57,15 +57,18 @@
   .it-wrap .panel { border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: 1.1rem; background: var(--surface-1); }
   .it-wrap .panel-title { font-size: 14px; font-weight: 600; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
   .it-wrap .panel-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
-  .it-wrap .metric-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; }
+  .it-wrap .metric-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; min-width: 0; }
   .it-wrap .metric-card.accent { background: var(--bg-accent); border-color: var(--bg-accent); }
   .it-wrap .metric-label { font-size: 12px; color: var(--text-secondary); margin: 0 0 4px; }
   .it-wrap .metric-value { font-size: 20px; font-weight: 600; margin: 0; }
-  .it-wrap .metric-card.compact { padding: 0.55rem 0.65rem; }
+  .it-wrap .metric-card.compact { padding: 0.55rem 0.65rem; min-width: 0; }
   .it-wrap .metric-card.compact .metric-label { font-size: 10.5px; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .it-wrap .metric-card.compact .metric-value { font-size: 15px; }
+  .it-wrap .metric-card.compact .metric-value { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .it-wrap .metric-row-compact { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-bottom:10px; }
-  .it-wrap .metric-row-twr { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-bottom:10px; }
+  .it-wrap .metric-row-twr { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:10px; }
+  @media (min-width: 480px) {
+    .it-wrap .metric-row-twr { grid-template-columns:repeat(3,1fr); }
+  }
   @media (min-width: 700px) {
     .it-wrap .metric-row-twr { grid-template-columns:repeat(6,1fr); }
   }
@@ -243,23 +246,16 @@
 <div id="tab-holdings" class="tab-content">
   <div class="tab-layout">
     <div class="panel">
-      <p class="panel-title">🔁 เงินฝาก / ถอนเงินสด</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <select id="c-type" style="grid-column:1/-1;">
-          <option value="deposit">ฝากเงินเข้าพอร์ต</option>
-          <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
-        </select>
-        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน" />
-        <input id="c-date" type="date" />
+      <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <button id="fetch-all-prices" type="button" class="btn-secondary">🔄 ดึงราคาทั้งหมด (Yahoo Finance)</button>
+        <span id="fetch-status" style="font-size:12px;color:var(--text-muted);"></span>
       </div>
-      <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
-    </div>
-    <div class="panel">
-      <p class="panel-title">เงินฝาก-ถอน</p>
+      <p class="panel-sub" style="margin-top:0;">ดึงราคาจาก Yahoo Finance ผ่าน CORS proxy สาธารณะ (สัญลักษณ์หุ้น + .BK) — ไม่ใช่ทางการ อาจล่ม/ช้า/ไม่ครบทุกตัว ควรตรวจสอบราคาก่อนใช้จริง</p>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
-        <tbody id="cash-body"></tbody>
+        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนรวม USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนรวม THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
+        <tbody id="holdings-body"></tbody>
       </table>
       </div>
     </div>
@@ -295,30 +291,38 @@
       </div>
     </div>
     <div class="panel">
-      <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-        <button id="fetch-all-prices" type="button" class="btn-secondary">🔄 ดึงราคาทั้งหมด (Yahoo Finance)</button>
-        <span id="fetch-status" style="font-size:12px;color:var(--text-muted);"></span>
-      </div>
-      <p class="panel-sub" style="margin-top:0;">ดึงราคาจาก Yahoo Finance ผ่าน CORS proxy สาธารณะ (สัญลักษณ์หุ้น + .BK) — ไม่ใช่ทางการ อาจล่ม/ช้า/ไม่ครบทุกตัว ควรตรวจสอบราคาก่อนใช้จริง</p>
+      <p class="panel-title">ธุรกรรมซื้อ/ขาย</p>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>หุ้น</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ต้นทุนรวม USD</th><th style="text-align:right;">USD/THB เฉลี่ย</th><th style="text-align:right;">ต้นทุนรวม THB</th><th style="text-align:right;">มูลค่าปัจจุบัน USD</th><th style="text-align:right;">มูลค่าปัจจุบัน THB</th><th style="text-align:right;">กำไร/ขาดทุน USD</th><th style="text-align:right;">กำไร/ขาดทุน THB</th></tr></thead>
-        <tbody id="holdings-body"></tbody>
+        <thead><tr><th>วันที่</th><th>หุ้น</th><th>ประเภท</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ราคา</th><th style="text-align:right;">มูลค่ารวม</th><th style="text-align:right;">ค่าธรรมเนียม</th><th>โน้ต</th><th></th></tr></thead>
+        <tbody id="tx-body"></tbody>
+      </table>
+      </div>
+    </div>
+    <div class="panel">
+      <p class="panel-title">🔁 เงินฝาก / ถอนเงินสด</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <select id="c-type" style="grid-column:1/-1;">
+          <option value="deposit">ฝากเงินเข้าพอร์ต</option>
+          <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
+        </select>
+        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน" />
+        <input id="c-date" type="date" />
+      </div>
+      <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
+    </div>
+    <div class="panel" style="margin-bottom:0;">
+      <p class="panel-title">เงินฝาก-ถอน</p>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
+        <tbody id="cash-body"></tbody>
       </table>
       </div>
     </div>
   </div>
-<div class="panel" style="margin-bottom:0;">
-  <p class="panel-title">ธุรกรรมซื้อ/ขาย</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>วันที่</th><th>หุ้น</th><th>ประเภท</th><th style="text-align:right;">จำนวน</th><th style="text-align:right;">ราคา</th><th style="text-align:right;">มูลค่ารวม</th><th style="text-align:right;">ค่าธรรมเนียม</th><th>โน้ต</th><th></th></tr></thead>
-    <tbody id="tx-body"></tbody>
-  </table>
-  </div>
 </div>
-</div>
+
 
 <div id="tab-performance" class="tab-content">
   <div class="tab-layout">
