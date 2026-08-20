@@ -224,7 +224,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต USD</p><p class="metric-value" id="m-alpha-usd">-</p></div>
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต THB</p><p class="metric-value" id="m-alpha">-</p></div>
-      <div class="metric-card" title="ผลต่าง TWRR สะสม USD ลบ TWRR สะสม THB — ถ้าเป็นบวก แปลว่าค่าเงินบาทอ่อนตัวลง (helping) ในช่วงที่ดู"><p class="metric-label">พอร์ต USD-THB</p><p class="metric-value" id="m-fx-rate">-</p></div>
+      <div class="metric-card" title="ผลต่าง TWRR สะสม USD ลบ TWRR สะสม THB — ถ้าเป็นบวก แปลว่าค่าเงินบาทอ่อนตัวลง (helping) ในช่วงที่ดู"><p class="metric-label">พอร์ต THB-USD</p><p class="metric-value" id="m-fx-rate">-</p></div>
       <div class="metric-card"><p class="metric-label">XIRR (Money-Weighted ทั้งหมด)</p><p class="metric-value" id="m-xirr">-</p></div>
     </div>
     <div class="panel">
@@ -306,10 +306,25 @@
           <option value="deposit">ฝากเงินเข้าพอร์ต</option>
           <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
         </select>
-        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน" />
-        <input id="c-date" type="date" />
+        <select id="c-currency" style="grid-column:1/-1;">
+          <option value="THB">สกุลเงิน: บาท (THB)</option>
+          <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD)</option>
+        </select>
+        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (บาท)" style="grid-column:1/-1;" />
+        <div id="c-usd-fields" style="display:none;grid-column:1/-1;">
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;">
+            <input id="c-amount-usd" type="number" min="0" step="0.01" placeholder="จำนวนเงิน (USD)" />
+            <input id="c-fx-rate" type="number" min="0" step="0.0001" placeholder="อัตราแลกเปลี่ยน (บาท/USD)" />
+            <button id="c-fx-fetch" type="button" class="btn-secondary" style="white-space:nowrap;">ดึงอัตรา</button>
+          </div>
+          <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">จำนวนเงิน (บาท) = จำนวน USD × อัตราแลกเปลี่ยน — คำนวณให้อัตโนมัติตอนกดเพิ่ม</p>
+        </div>
+        <input id="c-date" type="date" style="grid-column:1/-1;" />
       </div>
-      <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="c-add" style="flex:1;">+ เพิ่ม</button>
+        <button id="c-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
+      </div>
     </div>
     <div class="panel" style="margin-bottom:0;">
       <p class="panel-title">เงินฝาก-ถอน</p>
@@ -325,6 +340,16 @@
 
 
 <div id="tab-performance" class="tab-content">
+<div class="panel">
+  <p class="panel-title">Total Return vs Benchmarks</p>
+  <p class="panel-sub" style="margin-top:0;">คำนวณแบบ TWRR สะสม (Time-Weighted) จาก Snapshot ที่บันทึกไว้ — ช่วงที่ยังไม่มีข้อมูลเพียงพอจะแสดง "-"</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead><tr><th>Benchmark</th><th style="text-align:right;">1M</th><th style="text-align:right;">3M</th><th style="text-align:right;">6M</th><th style="text-align:right;">YTD</th><th style="text-align:right;">1Yr</th><th style="text-align:right;">2Yr</th><th style="text-align:right;">5Yr</th><th style="text-align:right;">All</th><th style="text-align:right;">Annualized</th></tr></thead>
+    <tbody id="trb-body"></tbody>
+  </table>
+  </div>
+</div>
   <div class="tab-layout">
     <div class="panel">
       <p class="panel-title">📊 Benchmark &amp; สัดส่วนเปรียบเทียบ</p>
@@ -1205,6 +1230,84 @@ function computeSeriesUsd(startDate, endDate, incDiv){
     rows.push({period: prev.date + ' → ' + curr.date, cf: cfUsd, r: r, rb: rb});
   }
   return {series: series, rows: rows, twrr: twrrFactor - 1, bench: benchFactor - 1};
+}
+
+function computeComponentReturnFull(startDate, componentId){
+  var filtered = snapshots.filter(function(s){
+    return (!startDate || s.date >= startDate) && s.benchValues && s.benchValues[componentId] !== undefined && s.benchValues[componentId] !== null && s.benchValues[componentId] !== '';
+  }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  if(filtered.length < 2) return null;
+  var factor = 1;
+  for(var i=1; i<filtered.length; i++){
+    var pv = filtered[i-1].benchValues[componentId], cv = filtered[i].benchValues[componentId];
+    if(pv > 0){ factor *= (cv / pv); }
+  }
+  return {r: factor - 1, firstDate: filtered[0].date, lastDate: filtered[filtered.length - 1].date};
+}
+
+function renderTotalReturnTable(){
+  var tbody = document.getElementById('trb-body');
+  if(!tbody) return;
+  var now = new Date();
+  function minusMonths(n){ var d = new Date(now); d.setMonth(d.getMonth() - n); return d.toISOString().slice(0,10); }
+  function minusYears(n){ var d = new Date(now); d.setFullYear(d.getFullYear() - n); return d.toISOString().slice(0,10); }
+  var periods = [
+    {key:'1M', start: minusMonths(1)},
+    {key:'3M', start: minusMonths(3)},
+    {key:'6M', start: minusMonths(6)},
+    {key:'YTD', start: now.getFullYear() + '-01-01'},
+    {key:'1Yr', start: minusYears(1)},
+    {key:'2Yr', start: minusYears(2)},
+    {key:'5Yr', start: minusYears(5)},
+    {key:'All', start: null}
+  ];
+
+  function buildRow(label, calcFn){
+    var outs = periods.map(function(p){ return calcFn(p.start); });
+    var cells = outs.map(function(o){ return o ? o.r : null; });
+    var allOut = outs[outs.length - 1];
+    var annualized = null;
+    if(allOut && allOut.firstDate && allOut.lastDate){
+      var days = (new Date(allOut.lastDate) - new Date(allOut.firstDate)) / 86400000;
+      if(days > 0){ annualized = Math.pow(1 + allOut.r, 365 / days) - 1; }
+    }
+    return {label: label, cells: cells, annualized: annualized};
+  }
+
+  var rows = [];
+  rows.push(buildRow('Portfolio', function(startDate){
+    var res = computeSeries(startDate, null, true);
+    if(!res) return null;
+    return {r: res.twrr, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
+  }));
+
+  var activeComponents = benchmarkComponents.filter(function(b){ return (b.name || '').trim() !== ''; });
+  activeComponents.forEach(function(comp){
+    rows.push(buildRow(comp.name, function(startDate){
+      return computeComponentReturnFull(startDate, comp.id);
+    }));
+  });
+
+  if(activeComponents.length){
+    rows.push(buildRow('Benchmark รวม (ถ่วงน้ำหนัก)', function(startDate){
+      var res = computeSeries(startDate, null, true);
+      if(!res) return null;
+      return {r: res.bench, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
+    }));
+  }
+
+  var html = rows.map(function(row){
+    var tds = row.cells.map(function(v){
+      if(v === null || v === undefined) return '<td style="text-align:right;color:var(--text-muted);">-</td>';
+      return '<td style="text-align:right;color:' + (v >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(v) + '</td>';
+    }).join('');
+    var annTd = (row.annualized === null || row.annualized === undefined)
+      ? '<td style="text-align:right;color:var(--text-muted);">-</td>'
+      : '<td style="text-align:right;color:' + (row.annualized >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(row.annualized) + '</td>';
+    return '<tr><td style="font-weight:600;">' + escapeHtml(row.label) + '</td>' + tds + annTd + '</tr>';
+  }).join('');
+
+  tbody.innerHTML = html || '<tr><td colspan="10" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดเพื่อคำนวณ</td></tr>';
 }
 
 /* ---------- XIRR (money-weighted return) ---------- */
@@ -2194,11 +2297,15 @@ function render(){
 
   var cashRows = cashFlows.slice().sort(function(a,b){ return a.date < b.date ? 1 : -1; }).map(function(c){
     var isDeposit = c.type === 'deposit';
+    var amountCell = fmt(c.amount);
+    if(c.currency === 'USD' && c.amountForeign){
+      amountCell = fmt(c.amount) + '<br /><span style="font-size:11px;color:var(--text-muted);">($' + fmt(c.amountForeign) + ' × ' + fmt(c.fxRate) + ')</span>';
+    }
     return '<tr>' +
       '<td style="color:var(--text-secondary);">' + c.date + '</td>' +
-      '<td style="color:' + (isDeposit ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + (isDeposit ? 'ฝากเงิน' : 'ถอนเงิน') + '</td>' +
-      '<td style="text-align:right;">' + (isDeposit ? '+' : '-') + fmt(c.amount) + '</td>' +
-      '<td style="text-align:right;"><button type="button" class="del-btn btn-del" data-store="cash" data-id="' + c.id + '">ลบ</button></td>' +
+      '<td style="color:' + (isDeposit ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + (isDeposit ? 'ฝากเงิน' : 'ถอนเงิน') + (c.currency === 'USD' ? ' <span style="font-size:10px;color:var(--text-accent);border:1px solid var(--text-accent);border-radius:4px;padding:1px 4px;">USD</span>' : '') + '</td>' +
+      '<td style="text-align:right;">' + (isDeposit ? '+' : '-') + amountCell + '</td>' +
+      '<td style="text-align:right;white-space:nowrap;"><button type="button" class="edit-cash-btn btn-secondary" data-id="' + c.id + '" style="font-size:12px;padding:4px 8px;margin-right:4px;">แก้ไข</button><button type="button" class="del-btn btn-del" data-store="cash" data-id="' + c.id + '">ลบ</button></td>' +
       '</tr>';
   }).join('');
   document.getElementById('cash-body').innerHTML = cashRows || '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มีประวัติเงินฝาก-ถอน</td></tr>';
@@ -2526,8 +2633,11 @@ function render(){
     if(benchOptions.some(function(b){ return b.symbol === prevBench; })){ benchSel.value = prevBench; }
   })();
 
+  renderTotalReturnTable();
+
   saveData();
 }
+
 
 document.getElementById('ref-fx-input').addEventListener('change', function(){
   referenceFxRate = parseFloat(this.value) || null;
@@ -2848,15 +2958,98 @@ document.getElementById('df-add').addEventListener('click', function(){
   render();
 });
 
+document.getElementById('c-currency').addEventListener('change', function(){
+  var isUsd = this.value === 'USD';
+  document.getElementById('c-usd-fields').style.display = isUsd ? 'block' : 'none';
+  document.getElementById('c-amount').style.display = isUsd ? 'none' : 'block';
+});
+
+document.getElementById('c-fx-fetch').addEventListener('click', function(){
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    document.getElementById('c-fx-rate').value = rate.toFixed(4);
+  }).catch(function(){
+    window.alert('ดึงอัตราแลกเปลี่ยนไม่สำเร็จ กรุณากรอกด้วยตนเอง');
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+});
+
+var editingCashId = null;
+
+function resetCashForm(){
+  editingCashId = null;
+  document.getElementById('c-type').value = 'deposit';
+  document.getElementById('c-amount').value = '';
+  document.getElementById('c-amount-usd').value = '';
+  document.getElementById('c-fx-rate').value = '';
+  document.getElementById('c-date').value = '';
+  document.getElementById('c-currency').value = 'THB';
+  document.getElementById('c-currency').dispatchEvent(new Event('change'));
+  document.getElementById('c-add').textContent = '+ เพิ่ม';
+  document.getElementById('c-cancel-edit').style.display = 'none';
+}
+
+document.getElementById('c-cancel-edit').addEventListener('click', resetCashForm);
+
+document.addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.edit-cash-btn') : null;
+  if(!btn) return;
+  var id = btn.getAttribute('data-id');
+  var c = cashFlows.filter(function(x){ return x.id === id; })[0];
+  if(!c) return;
+  editingCashId = id;
+  document.getElementById('c-type').value = c.type;
+  document.getElementById('c-currency').value = c.currency === 'USD' ? 'USD' : 'THB';
+  document.getElementById('c-currency').dispatchEvent(new Event('change'));
+  if(c.currency === 'USD'){
+    document.getElementById('c-amount-usd').value = c.amountForeign || '';
+    document.getElementById('c-fx-rate').value = c.fxRate || '';
+  } else {
+    document.getElementById('c-amount').value = c.amount;
+  }
+  document.getElementById('c-date').value = c.date;
+  document.getElementById('c-add').textContent = 'บันทึกการแก้ไข';
+  document.getElementById('c-cancel-edit').style.display = 'inline-block';
+  document.getElementById('c-type').scrollIntoView({behavior:'smooth', block:'center'});
+});
+
 document.getElementById('c-add').addEventListener('click', function(){
   var type = document.getElementById('c-type').value;
-  var amount = parseFloat(document.getElementById('c-amount').value);
+  var currency = document.getElementById('c-currency').value;
   var date = document.getElementById('c-date').value;
+
+  var amount, amountForeign = null, fxRate = null;
+  if(currency === 'USD'){
+    amountForeign = parseFloat(document.getElementById('c-amount-usd').value);
+    fxRate = parseFloat(document.getElementById('c-fx-rate').value);
+    if(!amountForeign || !fxRate || amountForeign <= 0 || fxRate <= 0){ window.alert('กรอกจำนวนเงิน USD และอัตราแลกเปลี่ยนให้ครบ'); return; }
+    amount = amountForeign * fxRate;
+  } else {
+    amount = parseFloat(document.getElementById('c-amount').value);
+  }
+
   if(!amount || amount <= 0 || !date) return;
-  cashId++;
-  cashFlows.push({id:'cash'+cashId, type:type, amount:amount, date:date});
-  document.getElementById('c-amount').value = '';
-  document.getElementById('c-date').value = '';
+
+  if(editingCashId){
+    var existing = cashFlows.filter(function(x){ return x.id === editingCashId; })[0];
+    if(existing){
+      existing.type = type; existing.amount = amount; existing.date = date; existing.currency = currency;
+      if(currency === 'USD'){ existing.amountForeign = amountForeign; existing.fxRate = fxRate; }
+      else { delete existing.amountForeign; delete existing.fxRate; }
+    }
+  } else {
+    cashId++;
+    var record = {id:'cash'+cashId, type:type, amount:amount, date:date, currency:currency};
+    if(currency === 'USD'){ record.amountForeign = amountForeign; record.fxRate = fxRate; }
+    cashFlows.push(record);
+  }
+
+  resetCashForm();
   render();
 });
 
