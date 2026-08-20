@@ -61,6 +61,14 @@
   .it-wrap .metric-card.accent { background: var(--bg-accent); border-color: var(--bg-accent); }
   .it-wrap .metric-label { font-size: 12px; color: var(--text-secondary); margin: 0 0 4px; }
   .it-wrap .metric-value { font-size: 20px; font-weight: 600; margin: 0; }
+  .it-wrap .metric-card.compact { padding: 0.55rem 0.65rem; }
+  .it-wrap .metric-card.compact .metric-label { font-size: 10.5px; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it-wrap .metric-card.compact .metric-value { font-size: 15px; }
+  .it-wrap .metric-row-compact { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-bottom:10px; }
+  .it-wrap .metric-row-twr { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-bottom:10px; }
+  @media (min-width: 700px) {
+    .it-wrap .metric-row-twr { grid-template-columns:repeat(6,1fr); }
+  }
   .it-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .it-wrap th { text-align: left; padding: 8px 6px; color: var(--text-secondary); font-weight: 500; font-size: 12px; }
   .it-wrap td { padding: 8px 6px; border-bottom: 1px solid var(--border); }
@@ -109,7 +117,10 @@
 <h1 class="sr-only">เครื่องมือติดตามพอร์ตการลงทุน พร้อม TWRR, XIRR, NAV เปรียบเทียบ Benchmark หลายสินทรัพย์ และโหมดมืด</h1>
 
 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem;">
-  <h2 style="font-size:20px;font-weight:600;margin:0;">เครื่องมือติดตามพอร์ตการลงทุน</h2>
+  <div>
+    <h2 style="font-size:20px;font-weight:600;margin:0;">เครื่องมือติดตามพอร์ตการลงทุน</h2>
+    <p id="file-last-modified" style="font-size:11px;color:var(--text-muted);margin:2px 0 0;"></p>
+  </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
     <button id="theme-toggle" type="button" class="btn-secondary">🌙 โหมดมืด</button>
     <button id="pin-set-btn" type="button" class="btn-secondary">🔒 ตั้ง/เปลี่ยน PIN</button>
@@ -178,36 +189,20 @@
   <input id="ref-fx-input" type="number" min="0" step="0.0001" placeholder="เช่น 35.20" style="max-width:130px;" />
   <button id="ref-fx-fetch" type="button" class="btn-secondary">ดึงอัตราล่าสุด</button>
 </div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px;">
-  <div class="metric-card"><p class="metric-label">เงินลงทุนสุทธิ</p><p class="metric-value" id="m-invested">0</p></div>
-  <div class="metric-card"><p class="metric-label">มูลค่าตลาดปัจจุบัน</p><p class="metric-value" id="m-value">0</p></div>
-  <div class="metric-card"><p class="metric-label">กำไร/ขาดทุน</p><p class="metric-value" id="m-pnl">0</p></div>
-  <div class="metric-card"><p class="metric-label">เงินปันผลสะสม</p><p class="metric-value" id="m-div">0</p></div>
-  <div class="metric-card"><p class="metric-label">เงินฝาก-ถอนสุทธิ</p><p class="metric-value" id="m-netcash">0</p></div>
+<div class="metric-row-compact">
+  <div class="metric-card compact"><p class="metric-label">เงินลงทุนสุทธิ</p><p class="metric-value" id="m-invested">0</p></div>
+  <div class="metric-card compact"><p class="metric-label">มูลค่าตลาดปัจจุบัน</p><p class="metric-value" id="m-value">0</p></div>
+  <div class="metric-card compact"><p class="metric-label">กำไร/ขาดทุน</p><p class="metric-value" id="m-pnl">0</p></div>
+  <div class="metric-card compact"><p class="metric-label">เงินปันผลสะสม</p><p class="metric-value" id="m-div">0</p></div>
+  <div class="metric-card compact"><p class="metric-label">เงินฝาก-ถอนสุทธิ</p><p class="metric-value" id="m-netcash">0</p></div>
 </div>
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:1.25rem;">
-  <div class="metric-card"><p class="metric-label">เงินลงทุนสุทธิ USD</p><p class="metric-value" id="m-invested-usd">-</p></div>
-  <div class="metric-card"><p class="metric-label">มูลค่าตลาดปัจจุบัน USD</p><p class="metric-value" id="m-value-usd">-</p></div>
-  <div class="metric-card"><p class="metric-label">กำไร/ขาดทุน USD</p><p class="metric-value" id="m-pnl-usd">-</p></div>
-  <div class="metric-card"><p class="metric-label">ปันผลสะสม USD</p><p class="metric-value" id="m-div-usd">-</p></div>
-  <div class="metric-card"><p class="metric-label">เงินฝาก-ถอนสุทธิ USD</p><p class="metric-value" id="m-netcash-usd">-</p></div>
+<div class="metric-row-compact" style="margin-bottom:1.25rem;">
+  <div class="metric-card compact"><p class="metric-label">เงินลงทุนสุทธิ USD</p><p class="metric-value" id="m-invested-usd">-</p></div>
+  <div class="metric-card compact"><p class="metric-label">มูลค่าตลาดปัจจุบัน USD</p><p class="metric-value" id="m-value-usd">-</p></div>
+  <div class="metric-card compact"><p class="metric-label">กำไร/ขาดทุน USD</p><p class="metric-value" id="m-pnl-usd">-</p></div>
+  <div class="metric-card compact"><p class="metric-label">ปันผลสะสม USD</p><p class="metric-value" id="m-div-usd">-</p></div>
+  <div class="metric-card compact"><p class="metric-label">เงินฝาก-ถอนสุทธิ USD</p><p class="metric-value" id="m-netcash-usd">-</p></div>
 </div>
-  <div class="tab-layout">
-    <div class="left-col">
-    <div class="panel">
-      <p class="panel-title">🔁 เงินฝาก / ถอนเงินสด</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <select id="c-type" style="grid-column:1/-1;">
-          <option value="deposit">ฝากเงินเข้าพอร์ต</option>
-          <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
-        </select>
-        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน" />
-        <input id="c-date" type="date" />
-      </div>
-      <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
-    </div>
-    </div>
-    <div class="right-col">
     <div class="panel" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
       <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">📅 ช่วงเวลาที่ดู (สำหรับ TWRR):</span>
       <input id="f-start" type="date" style="max-width:150px;" />
@@ -215,13 +210,13 @@
       <input id="f-end" type="date" style="max-width:150px;" />
       <button id="f-reset" type="button" class="btn-secondary">ดูทั้งหมด</button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:10px;">
-      <div class="metric-card accent"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม USD</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr-usd">-</p></div>
-      <div class="metric-card accent"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม THB</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr">-</p></div>
-      <div class="metric-card"><p class="metric-label" id="bench-label">TWRR Benchmark</p><p class="metric-value" id="m-bench">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV พอร์ต USD (ฐาน 100)</p><p class="metric-value" id="m-nav-port-usd">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV พอร์ต THB (ฐาน 100)</p><p class="metric-value" id="m-nav-port">-</p></div>
-      <div class="metric-card"><p class="metric-label">NAV Benchmark (ฐาน 100)</p><p class="metric-value" id="m-nav-bench">-</p></div>
+    <div class="metric-row-twr">
+      <div class="metric-card accent compact"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม USD</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr-usd">-</p></div>
+      <div class="metric-card accent compact"><p class="metric-label" style="color:var(--text-accent);">TWRR สะสม THB</p><p class="metric-value" style="color:var(--text-accent);" id="m-twrr">-</p></div>
+      <div class="metric-card compact"><p class="metric-label" id="bench-label">TWRR Benchmark</p><p class="metric-value" id="m-bench">-</p></div>
+      <div class="metric-card compact"><p class="metric-label">NAV พอร์ต USD (ฐาน 100)</p><p class="metric-value" id="m-nav-port-usd">-</p></div>
+      <div class="metric-card compact"><p class="metric-label">NAV พอร์ต THB (ฐาน 100)</p><p class="metric-value" id="m-nav-port">-</p></div>
+      <div class="metric-card compact"><p class="metric-label">NAV Benchmark (ฐาน 100)</p><p class="metric-value" id="m-nav-bench">-</p></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.1rem;">
       <div class="metric-card"><p class="metric-label">Alpha พอร์ต USD</p><p class="metric-value" id="m-alpha-usd">-</p></div>
@@ -243,22 +238,31 @@
         <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span><span id="chart-bench-legend-text">Benchmark</span></span>
       </div>
     </div>
-    </div>
-  </div>
-<div class="panel">
-  <p class="panel-title">เงินฝาก-ถอน</p>
-  <div style="overflow-x:auto;">
-  <table>
-    <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
-    <tbody id="cash-body"></tbody>
-  </table>
-  </div>
-</div>
 </div>
 
 <div id="tab-holdings" class="tab-content">
-  <div class="tab-layout with-side">
-    <div class="left-col">
+  <div class="tab-layout">
+    <div class="panel">
+      <p class="panel-title">🔁 เงินฝาก / ถอนเงินสด</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <select id="c-type" style="grid-column:1/-1;">
+          <option value="deposit">ฝากเงินเข้าพอร์ต</option>
+          <option value="withdraw">ถอนเงินออกจากพอร์ต</option>
+        </select>
+        <input id="c-amount" type="number" min="0" step="0.01" placeholder="จำนวนเงิน" />
+        <input id="c-date" type="date" />
+      </div>
+      <button id="c-add" style="width:100%;margin-top:8px;">+ เพิ่ม</button>
+    </div>
+    <div class="panel">
+      <p class="panel-title">เงินฝาก-ถอน</p>
+      <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>วันที่</th><th>ประเภท</th><th style="text-align:right;">จำนวนเงิน</th><th></th></tr></thead>
+        <tbody id="cash-body"></tbody>
+      </table>
+      </div>
+    </div>
     <div class="panel">
       <p class="panel-title">🧾 ธุรกรรมซื้อ/ขาย</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -290,8 +294,6 @@
         <button id="t-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
       </div>
     </div>
-    </div>
-    <div class="right-col">
     <div class="panel">
       <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
@@ -306,7 +308,6 @@
       </table>
       </div>
     </div>
-    </div>
   </div>
 <div class="panel" style="margin-bottom:0;">
   <p class="panel-title">ธุรกรรมซื้อ/ขาย</p>
@@ -320,8 +321,7 @@
 </div>
 
 <div id="tab-performance" class="tab-content">
-  <div class="tab-layout with-side">
-    <div class="left-col">
+  <div class="tab-layout">
     <div class="panel">
       <p class="panel-title">📊 Benchmark &amp; สัดส่วนเปรียบเทียบ</p>
       <p class="panel-sub">เพิ่มสินทรัพย์และกำหนด % น้ำหนักในที่เดียว ใส่ "สัญลักษณ์ Yahoo" (ไม่บังคับ) เช่น ^SET.BK, ^GSPC, GC=F เพื่อดึงราคาอัตโนมัติได้</p>
@@ -358,8 +358,6 @@
       </div>
       <p class="panel-sub" style="margin-top:10px;margin-bottom:0;">Benchmark ตัวไหนไม่มีข้อมูลวันนั้นเว้นว่างได้ ไม่บังคับกรอกครบ</p>
     </div>
-    </div>
-    <div class="right-col">
     <div class="panel">
       <p class="panel-title">📊 ราคาหุ้นแต่ละตัวเทียบกับ Benchmark</p>
       <p class="panel-sub">ดึงข้อมูลราคาย้อนหลังสดจาก Yahoo Finance (ผ่าน CORS proxy เดียวกับปุ่มดึงราคา) แสดงเป็น % เปลี่ยนแปลงเทียบจากจุดเริ่มต้นช่วงที่เลือก</p>
@@ -407,7 +405,6 @@
       </table>
       </div>
     </div>
-    </div>
   </div>
 <div class="panel">
   <p class="panel-title">รายงานผลตอบแทนรายช่วง (TWRR เทียบ Benchmark)</p>
@@ -430,8 +427,7 @@
 </div>
 
 <div id="tab-dividends" class="tab-content">
-  <div class="tab-layout with-side">
-    <div class="left-col">
+  <div class="tab-layout">
     <div class="panel">
       <p class="panel-title">🪙 เงินปันผล</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -456,8 +452,6 @@
         <button id="d-cancel-edit" type="button" class="btn-secondary" style="display:none;">ยกเลิก</button>
       </div>
     </div>
-    </div>
-    <div class="right-col">
 
     <div class="panel">
       <p class="panel-title">📅 ปฏิทินคาดการณ์เงินปันผลรายเดือน (12 เดือนข้างหน้า)</p>
@@ -487,8 +481,6 @@
         <tbody id="df-body"></tbody>
       </table>
       </div>
-    </div>
-
     </div>
   </div>
 <div class="panel">
@@ -566,6 +558,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
+(function(){
+  try {
+    var d = new Date(document.lastModified);
+    var txt = 'แก้ไขล่าสุด: ' + d.toLocaleDateString('th-TH', {day:'2-digit', month:'short', year:'numeric'}) + ' ' + d.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+    var el = document.getElementById('file-last-modified');
+    if (el) el.textContent = txt;
+  } catch(e) {}
+})();
 var transactions = [];
 var dividendEntries = [];
 var cashFlows = [];
@@ -2861,6 +2861,20 @@ document.getElementById('s-pull').addEventListener('click', function(){
   if(!date) return;
   var total = computeHoldingsAsOf(date);
   document.getElementById('s-value').value = total.toFixed(2);
+
+  var btn = this;
+  var original = btn.textContent;
+  btn.textContent = '⏳ กำลังดึงมูลค่า...';
+  btn.disabled = true;
+  fetchYahooPrice('THB=X').then(function(rate){
+    document.getElementById('s-fx-rate').value = rate.toFixed(4);
+  }).catch(function(){
+    /* ดึงสด ไม่สำเร็จ — ใช้อัตราแลกเปลี่ยนอ้างอิงปัจจุบันแทน ถ้ามี จะได้ไม่ต้องกรอกเอง */
+    if(referenceFxRate){ document.getElementById('s-fx-rate').value = referenceFxRate.toFixed(4); }
+  }).finally(function(){
+    btn.textContent = original;
+    btn.disabled = false;
+  });
 });
 
 document.getElementById('s-fx-fetch').addEventListener('click', function(){
