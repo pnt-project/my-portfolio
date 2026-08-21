@@ -341,8 +341,14 @@
 
 <div id="tab-performance" class="tab-content">
 <div class="panel">
-  <p class="panel-title">Total Return vs Benchmarks</p>
-  <p class="panel-sub" style="margin-top:0;">คำนวณแบบ TWRR สะสม (Time-Weighted) จาก Snapshot ที่บันทึกไว้ — ช่วงที่ยังไม่มีข้อมูลเพียงพอจะแสดง "-"</p>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <p class="panel-title" style="margin:0;">Total Return vs Benchmarks</p>
+    <select id="trb-currency" style="width:auto;font-size:12px;padding:5px 8px;">
+      <option value="THB">สกุลเงิน: บาท (THB)</option>
+      <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD)</option>
+    </select>
+  </div>
+  <p class="panel-sub" style="margin-top:6px;">คำนวณแบบ TWRR สะสม (Time-Weighted) จาก Snapshot ที่บันทึกไว้ — ช่วงที่ยังไม่มีข้อมูลเพียงพอจะแสดง "-" — มุมมอง USD ใช้เฉพาะ Snapshot ที่มีการบันทึกอัตราแลกเปลี่ยนไว้ — คอลัมน์ Annualized จะแสดงเฉพาะเมื่อมีข้อมูลย้อนหลังครบ 1 ปีขึ้นไป เพื่อไม่ให้ยืดตัวเลขช่วงสั้นจนบิดเบือน</p>
   <div style="overflow-x:auto;">
   <table>
     <thead><tr><th>Benchmark</th><th style="text-align:right;">1M</th><th style="text-align:right;">3M</th><th style="text-align:right;">6M</th><th style="text-align:right;">YTD</th><th style="text-align:right;">1Yr</th><th style="text-align:right;">2Yr</th><th style="text-align:right;">5Yr</th><th style="text-align:right;">All</th><th style="text-align:right;">Annualized</th></tr></thead>
@@ -351,9 +357,18 @@
   </div>
 </div>
 <div class="panel">
-  <p class="panel-title">📅 Historical Return รายเดือนเทียบกับ Benchmark</p>
-  <p class="panel-sub" style="margin-top:0;">ผลตอบแทนแบบ TWRR สรุปเป็นรายเดือน จากการไล่คำนวณ Snapshot ต่อเนื่องกัน (Snapshot ที่จบในเดือนไหน จะถูกนับเป็นผลตอบแทนของเดือนนั้น)</p>
-  <div id="hr-chart-container"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <p class="panel-title" style="margin:0;">📅 Historical Return รายเดือนเทียบกับ Benchmark</p>
+    <select id="hr-currency" style="width:auto;font-size:12px;padding:5px 8px;">
+      <option value="THB">สกุลเงิน: บาท (THB)</option>
+      <option value="USD">สกุลเงิน: ดอลลาร์สหรัฐ (USD)</option>
+    </select>
+  </div>
+  <p class="panel-sub" style="margin-top:6px;">ผลตอบแทนแบบ TWRR สรุปเป็นรายเดือน จากการไล่คำนวณ Snapshot ต่อเนื่องกัน (Snapshot ที่จบในเดือนไหน จะถูกนับเป็นผลตอบแทนของเดือนนั้น) — มุมมอง USD ใช้เฉพาะ Snapshot ที่มีการบันทึกอัตราแลกเปลี่ยนไว้</p>
+  <div id="hr-chart-wrap" style="position:relative;">
+    <div id="hr-chart-container"></div>
+    <div id="hr-tooltip" style="display:none;position:absolute;pointer-events:none;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-primary);box-shadow:0 4px 12px rgba(0,0,0,0.35);z-index:5;white-space:nowrap;"></div>
+  </div>
   <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
     <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--text-success);display:inline-block;border-radius:2px;"></span>พอร์ตของคุณ</span>
     <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--text-secondary);display:inline-block;border-radius:2px;"></span>Benchmark รวม (ถ่วงน้ำหนัก)</span>
@@ -1247,9 +1262,11 @@ function computeSeriesUsd(startDate, endDate, incDiv){
   return {series: series, rows: rows, twrr: twrrFactor - 1, bench: benchFactor - 1};
 }
 
-function computeComponentReturnFull(startDate, componentId){
+function computeComponentReturnFull(startDate, componentId, requireFx){
   var filtered = snapshots.filter(function(s){
-    return (!startDate || s.date >= startDate) && s.benchValues && s.benchValues[componentId] !== undefined && s.benchValues[componentId] !== null && s.benchValues[componentId] !== '';
+    return (!startDate || s.date >= startDate)
+      && (!requireFx || (s.fxRateUsd && s.fxRateUsd > 0))
+      && s.benchValues && s.benchValues[componentId] !== undefined && s.benchValues[componentId] !== null && s.benchValues[componentId] !== '';
   }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   if(filtered.length < 2) return null;
   var factor = 1;
@@ -1260,15 +1277,20 @@ function computeComponentReturnFull(startDate, componentId){
   return {r: factor - 1, firstDate: filtered[0].date, lastDate: filtered[filtered.length - 1].date};
 }
 
-function computeMonthlyReturns(){
-  var filtered = snapshots.slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+function computeMonthlyReturns(isUsd){
+  var filtered = snapshots.filter(function(s){
+    return !isUsd || (s.fxRateUsd && s.fxRateUsd > 0);
+  }).sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   if(filtered.length < 2) return [];
   var totalWeight = benchmarkComponents.reduce(function(s,b){ return s + (parseFloat(b.weight)||0); }, 0) || 100;
   var byMonth = {};
   for(var i=1; i<filtered.length; i++){
     var prev = filtered[i-1], curr = filtered[i];
-    var cf = cfInRange(prev.date, curr.date, true);
-    var r = prev.value > 0 ? (curr.value - cf - prev.value) / prev.value : 0;
+    var prevVal = isUsd ? prev.value / prev.fxRateUsd : prev.value;
+    var currVal = isUsd ? curr.value / curr.fxRateUsd : curr.value;
+    var cfRaw = cfInRange(prev.date, curr.date, true);
+    var cf = isUsd ? cfRaw / curr.fxRateUsd : cfRaw;
+    var r = prevVal > 0 ? (currVal - cf - prevVal) / prevVal : 0;
     var rb = 0;
     benchmarkComponents.forEach(function(b){
       var pv = prev.benchValues ? prev.benchValues[b.id] : undefined;
@@ -1319,9 +1341,11 @@ function renderMonthlyReturnChart(containerId, dataPoints){
     var benchY = d.benchRet >= 0 ? yPos(d.benchRet) : zeroYPix;
     var benchH = Math.max(Math.abs(yPos(d.benchRet) - zeroYPix), 0.5);
     var portColor = d.portRet >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
-    return '<rect x="' + gx + '" y="' + portY + '" width="' + barWidth + '" height="' + portH + '" fill="' + portColor + '" rx="2"><title>' + d.month + ' พอร์ต: ' + fmtPct(d.portRet) + '</title></rect>' +
-      '<rect x="' + (gx + barWidth + 2) + '" y="' + benchY + '" width="' + barWidth + '" height="' + benchH + '" fill="var(--text-secondary)" rx="2"><title>' + d.month + ' Benchmark: ' + fmtPct(d.benchRet) + '</title></rect>' +
-      '<text x="' + (gx + groupWidth / 2) + '" y="' + (h - padB + 16) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle">' + d.month + '</text>';
+    var hitX = padL + slot * i;
+    return '<rect x="' + gx + '" y="' + portY + '" width="' + barWidth + '" height="' + portH + '" fill="' + portColor + '" rx="2" style="pointer-events:none;"></rect>' +
+      '<rect x="' + (gx + barWidth + 2) + '" y="' + benchY + '" width="' + barWidth + '" height="' + benchH + '" fill="var(--text-secondary)" rx="2" style="pointer-events:none;"></rect>' +
+      '<text x="' + (gx + groupWidth / 2) + '" y="' + (h - padB + 16) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle" style="pointer-events:none;">' + d.month + '</text>' +
+      '<rect class="hr-hit" x="' + hitX + '" y="' + padT + '" width="' + slot + '" height="' + plotH + '" fill="transparent" data-month="' + d.month + '" data-port="' + d.portRet + '" data-bench="' + d.benchRet + '" style="cursor:pointer;"></rect>';
   }).join('');
 
   var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' +
@@ -1330,12 +1354,39 @@ function renderMonthlyReturnChart(containerId, dataPoints){
     bars +
     '</svg>';
   container.innerHTML = svg;
+
+  var tooltip = document.getElementById('hr-tooltip');
+  var wrap = document.getElementById('hr-chart-wrap');
+  if(tooltip && wrap){
+    var hits = container.querySelectorAll('.hr-hit');
+    hits.forEach(function(hit){
+      hit.addEventListener('mousemove', function(e){
+        var wrapRect = wrap.getBoundingClientRect();
+        var x = e.clientX - wrapRect.left;
+        var y = e.clientY - wrapRect.top;
+        var month = this.getAttribute('data-month');
+        var port = parseFloat(this.getAttribute('data-port'));
+        var bench = parseFloat(this.getAttribute('data-bench'));
+        tooltip.innerHTML = '<div style="font-weight:600;margin-bottom:4px;">' + month + '</div>' +
+          '<div><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--text-success);margin-right:6px;"></span>พอร์ตของคุณ: ' + fmtPct(port) + '</div>' +
+          '<div><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--text-secondary);margin-right:6px;"></span>Benchmark รวม: ' + fmtPct(bench) + '</div>';
+        var left = x + 14;
+        if(left + 170 > wrapRect.width){ left = x - 170; }
+        tooltip.style.left = Math.max(left, 0) + 'px';
+        tooltip.style.top = Math.max(y - 60, 0) + 'px';
+        tooltip.style.display = 'block';
+      });
+      hit.addEventListener('mouseleave', function(){ tooltip.style.display = 'none'; });
+    });
+  }
 }
 
 function renderHistoricalReturnPanel(){
   var tbody = document.getElementById('hr-body');
   if(!tbody) return;
-  var monthly = computeMonthlyReturns();
+  var currencySel = document.getElementById('hr-currency');
+  var isUsd = currencySel && currencySel.value === 'USD';
+  var monthly = computeMonthlyReturns(isUsd);
   renderMonthlyReturnChart('hr-chart-container', monthly);
   var html = monthly.map(function(d){
     var excess = d.portRet - d.benchRet;
@@ -1346,11 +1397,14 @@ function renderHistoricalReturnPanel(){
       '<td style="text-align:right;color:' + (excess >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + fmtPct(excess) + '</td>' +
       '</tr>';
   }).join('');
-  tbody.innerHTML = html || '<tr><td colspan="4" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดในเดือนต่าง ๆ เพื่อคำนวณ</td></tr>';
+  tbody.innerHTML = html || (isUsd
+    ? '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มี Snapshot ที่บันทึกอัตราแลกเปลี่ยนไว้ — กดปุ่มดึงอัตราตอนบันทึก Snapshot เพื่อให้มุมมอง USD คำนวณได้</td></tr>'
+    : '<tr><td colspan="4" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดในเดือนต่าง ๆ เพื่อคำนวณ</td></tr>');
 }
 
-function earliestSnapshotDate(componentId){
+function earliestSnapshotDate(componentId, requireFx){
   var relevant = snapshots.filter(function(s){
+    if(requireFx && !(s.fxRateUsd && s.fxRateUsd > 0)) return false;
     return componentId ? (s.benchValues && s.benchValues[componentId] !== undefined && s.benchValues[componentId] !== null && s.benchValues[componentId] !== '') : true;
   });
   if(!relevant.length) return null;
@@ -1360,6 +1414,8 @@ function earliestSnapshotDate(componentId){
 function renderTotalReturnTable(){
   var tbody = document.getElementById('trb-body');
   if(!tbody) return;
+  var currencySel = document.getElementById('trb-currency');
+  var isUsd = currencySel && currencySel.value === 'USD';
   var now = new Date();
   function minusMonths(n){ var d = new Date(now); d.setMonth(d.getMonth() - n); return d.toISOString().slice(0,10); }
   function minusYears(n){ var d = new Date(now); d.setFullYear(d.getFullYear() - n); return d.toISOString().slice(0,10); }
@@ -1387,15 +1443,15 @@ function renderTotalReturnTable(){
     var annualized = null;
     if(allOut && allOut.firstDate && allOut.lastDate){
       var days = (new Date(allOut.lastDate) - new Date(allOut.firstDate)) / 86400000;
-      if(days > 0){ annualized = Math.pow(1 + allOut.r, 365 / days) - 1; }
+      if(days >= 365){ annualized = Math.pow(1 + allOut.r, 365 / days) - 1; }
     }
     return {label: label, cells: cells, annualized: annualized};
   }
 
   var rows = [];
-  var portfolioEarliest = earliestSnapshotDate(null);
+  var portfolioEarliest = earliestSnapshotDate(null, isUsd);
   rows.push(buildRow('Portfolio', function(startDate){
-    var res = computeSeries(startDate, null, true);
+    var res = isUsd ? computeSeriesUsd(startDate, null, true) : computeSeries(startDate, null, true);
     if(!res) return null;
     return {r: res.twrr, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
   }, portfolioEarliest));
@@ -1403,13 +1459,13 @@ function renderTotalReturnTable(){
   var activeComponents = benchmarkComponents.filter(function(b){ return (b.name || '').trim() !== ''; });
   activeComponents.forEach(function(comp){
     rows.push(buildRow(comp.name, function(startDate){
-      return computeComponentReturnFull(startDate, comp.id);
-    }, earliestSnapshotDate(comp.id)));
+      return computeComponentReturnFull(startDate, comp.id, isUsd);
+    }, earliestSnapshotDate(comp.id, isUsd)));
   });
 
   if(activeComponents.length){
     rows.push(buildRow('Benchmark รวม (ถ่วงน้ำหนัก)', function(startDate){
-      var res = computeSeries(startDate, null, true);
+      var res = isUsd ? computeSeriesUsd(startDate, null, true) : computeSeries(startDate, null, true);
       if(!res) return null;
       return {r: res.bench, firstDate: res.series[0].date, lastDate: res.series[res.series.length - 1].date};
     }, portfolioEarliest));
@@ -1426,7 +1482,9 @@ function renderTotalReturnTable(){
     return '<tr><td style="font-weight:600;">' + escapeHtml(row.label) + '</td>' + tds + annTd + '</tr>';
   }).join('');
 
-  tbody.innerHTML = html || '<tr><td colspan="10" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดเพื่อคำนวณ</td></tr>';
+  tbody.innerHTML = html || (isUsd
+    ? '<tr><td colspan="10" style="color:var(--text-muted);">ยังไม่มี Snapshot ที่บันทึกอัตราแลกเปลี่ยนไว้ — กดปุ่มดึงอัตราตอนบันทึก Snapshot เพื่อให้มุมมอง USD คำนวณได้</td></tr>'
+    : '<tr><td colspan="10" style="color:var(--text-muted);">เพิ่ม Snapshot อย่างน้อย 2 จุดเพื่อคำนวณ</td></tr>');
 }
 
 /* ---------- XIRR (money-weighted return) ---------- */
@@ -3279,6 +3337,8 @@ document.getElementById('bench-add-row').addEventListener('click', function(){
 
 document.getElementById('f-start').addEventListener('change', render);
 document.getElementById('f-end').addEventListener('change', render);
+document.getElementById('trb-currency').addEventListener('change', renderTotalReturnTable);
+document.getElementById('hr-currency').addEventListener('change', renderHistoricalReturnPanel);
 document.getElementById('f-reset').addEventListener('click', function(){
   document.getElementById('f-start').value = '';
   document.getElementById('f-end').value = '';
