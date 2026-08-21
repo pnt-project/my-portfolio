@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime, timezone, timedelta
 
 import firebase_admin
@@ -46,16 +47,20 @@ today = datetime.now(ICT).strftime("%Y-%m-%d")
 price_cache = {}  # avoid refetching the same symbol twice across portfolios
 
 
-def get_price(ticker_symbol):
+def get_price(ticker_symbol, retries=3):
     if ticker_symbol in price_cache:
         return price_cache[ticker_symbol]
     price = None
-    try:
-        hist = yf.Ticker(ticker_symbol).history(period="5d")
-        if not hist.empty:
-            price = float(hist["Close"].iloc[-1])
-    except Exception as exc:  # noqa: BLE001
-        print(f"price fetch failed for {ticker_symbol}: {exc}")
+    for attempt in range(retries):
+        try:
+            hist = yf.Ticker(ticker_symbol).history(period="5d")
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+                break
+        except Exception as exc:  # noqa: BLE001
+            print(f"price fetch failed for {ticker_symbol} (attempt {attempt + 1}/{retries}): {exc}")
+        if price is None and attempt < retries - 1:
+            time.sleep(60)
     price_cache[ticker_symbol] = price
     return price
 
@@ -139,14 +144,26 @@ for portfolio in data["portfolios"]:
     snapshots = [s for s in portfolio.get("snapshots", []) if s.get("date") != today]  # avoid duplicate same-day
     counters = dict(portfolio.get("counters", {}))
     next_snap_id = counters.get("snapId", 0) + 1
-    snapshots.append({
+    if fx_rate is None:
+        fx_rate = get_price("THB=X")  # ensure we always have it for the snapshot's USD view, even if no USD holdings triggered a fetch above
+    if fx_rate is None:
+        # Last resort: Yahoo Finance failed even after retries — carry forward the most recent
+        # snapshot's fxRateUsd instead of silently leaving the USD view blank for this run.
+        prior_with_fx = [s for s in portfolio.get("snapshots", []) if s.get("fxRateUsd")]
+        if prior_with_fx:
+            fx_rate = sorted(prior_with_fx, key=lambda s: s["date"])[-1]["fxRateUsd"]
+            print(f"[{portfolio.get('name')}] THB=X fetch failed after retries; carrying forward previous fxRateUsd={fx_rate}")
+    new_snapshot = {
         "id": f"snap{next_snap_id}",
         "date": today,
         "value": round(total_value, 2),
         "benchValues": bench_values,
         "source": "auto",
         "createdAt": datetime.now(ICT).isoformat(),
-    })
+    }
+    if fx_rate:
+        new_snapshot["fxRateUsd"] = round(fx_rate, 4)
+    snapshots.append(new_snapshot)
     counters["snapId"] = next_snap_id
 
     portfolio["snapshots"] = snapshots
