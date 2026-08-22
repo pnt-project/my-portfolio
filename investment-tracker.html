@@ -91,6 +91,14 @@
   .it-wrap .tab-btn { background:none; border:none; border-bottom:2px solid transparent; border-radius:0; color:var(--text-secondary); font-weight:500; font-size:13px; padding:10px 14px; white-space:nowrap; cursor:pointer; }
   .it-wrap .tab-btn:hover { opacity:1; color:var(--text-primary); }
   .it-wrap .tab-btn.active { color:var(--text-accent); border-bottom-color:var(--text-accent); }
+  .it-wrap .goal-pill { background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); border-radius:999px; padding:6px 14px; font-size:12px; font-weight:500; cursor:pointer; }
+  .it-wrap .goal-pill.active { background:var(--text-accent); color:#fff; border-color:var(--text-accent); }
+  .it-wrap .goal-pill-add { background:none; border-style:dashed; color:var(--text-accent); border-color:var(--text-accent); }
+  .it-wrap .goal-zoom-btn, .it-wrap .goal-period-btn, .it-wrap .goal-table-tab-btn { background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); border-radius:8px; padding:5px 11px; font-size:12px; font-weight:500; cursor:pointer; }
+  .it-wrap .goal-zoom-btn.active, .it-wrap .goal-period-btn.active, .it-wrap .goal-table-tab-btn.active { background:var(--text-accent); color:#fff; border-color:var(--text-accent); }
+  .it-wrap .goal-progress-track { background:var(--surface-2); border:1px solid var(--border); border-radius:999px; height:22px; width:100%; position:relative; overflow:hidden; }
+  .it-wrap .goal-progress-fill { background:var(--text-success); height:100%; border-radius:999px; transition:width 0.3s ease; }
+  .it-wrap .goal-progress-label { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:600; color:#fff; }
   .it-wrap .tab-content { display:none; }
   .it-wrap .tab-content.active { display:block; }
   .it-wrap .tab-layout { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
@@ -180,6 +188,7 @@
 <main class="app-main">
 <div class="tab-nav">
   <button type="button" class="tab-btn" id="tab-btn-overview">🏠 Overview</button>
+  <button type="button" class="tab-btn" id="tab-btn-goals">🎯 Goal Tracker</button>
   <button type="button" class="tab-btn" id="tab-btn-holdings">💼 Holdings</button>
   <button type="button" class="tab-btn" id="tab-btn-performance">📈 Performance</button>
   <button type="button" class="tab-btn" id="tab-btn-dividends">🪙 Dividends</button>
@@ -241,6 +250,109 @@
         <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span><span id="chart-bench-legend-text">Benchmark</span></span>
       </div>
     </div>
+</div>
+
+<div id="tab-goals" class="tab-content">
+  <div class="panel">
+    <div id="goal-switcher" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;"></div>
+    <div id="goal-empty-state" style="display:none;text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:13px;">ยังไม่มีเป้าหมาย กด "+ เพิ่มเป้าหมาย" ด้านบนเพื่อเริ่มต้นสร้างเป้าหมายแรกของคุณ</div>
+
+    <div id="goal-body" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="goal-period-btn" data-period="all">All</button>
+          <button type="button" class="goal-period-btn" data-period="month">This month</button>
+          <button type="button" class="goal-period-btn" data-period="year">This year</button>
+        </div>
+        <button type="button" id="goal-edit-open-btn" class="btn-secondary">✏️ Edit Plan</button>
+      </div>
+
+      <div id="goal-edit-panel" style="display:none;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:22px;background:var(--surface-2);">
+        <p style="font-size:13px;font-weight:600;margin:0 0 12px;">แก้ไขเป้าหมาย</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">ชื่อเป้าหมาย</label>
+            <input id="goal-name-input" type="text" placeholder="เช่น กองทุนเกษียณ" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">จำนวนเงินเป้าหมาย (บาท)</label>
+            <input id="goal-amount-input" type="number" min="0" step="1000" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">วันที่ต้องการถึงเป้าหมาย</label>
+            <input id="goal-date-input" type="date" />
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">ผลตอบแทนคาดหวังต่อปี (%)</label>
+            <input id="goal-rate-input" type="number" min="0" max="100" step="0.1" />
+          </div>
+        </div>
+        <div style="margin-bottom:10px;max-width:220px;">
+          <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">เริ่มเดือนของแผนฝากเงิน (DCA)</label>
+          <input id="goal-dca-start-input" type="date" />
+        </div>
+        <p style="font-size:12px;font-weight:500;margin:0 0 6px;color:var(--text-secondary);">แผนฝากเงินรายเดือน (ต่อกันตามลำดับ)</p>
+        <div id="goal-tier-rows" style="margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+          <button id="goal-add-tier" type="button" class="btn-secondary">+ เพิ่มช่วง</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;">
+          <button id="goal-delete-btn" type="button" class="btn-del">🗑️ ลบเป้าหมายนี้</button>
+          <div style="display:flex;gap:8px;">
+            <button id="goal-cancel-btn" type="button" class="btn-secondary">ยกเลิก</button>
+            <button id="goal-save-btn" type="button">บันทึกแผน</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:22px;text-align:center;">
+        <div>
+          <p class="metric-label">Current Value</p>
+          <p class="metric-value" id="goal-current-value">฿0</p>
+        </div>
+        <div>
+          <p class="metric-label" style="margin-bottom:6px;">Progress</p>
+          <div class="goal-progress-track"><div class="goal-progress-fill" id="goal-progress-fill" style="width:0%;"></div><span class="goal-progress-label" id="goal-progress-label">0%</span></div>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Towards Your Dream Goal</p>
+        </div>
+        <div>
+          <p class="metric-label">My Goal</p>
+          <p class="metric-value" id="goal-target-value">฿0</p>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:11px;color:var(--text-muted);margin-right:2px;">Zoom:</span>
+          <button type="button" class="goal-zoom-btn" data-zoom="1m">1m</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="3m">3m</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="6m">6m</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="Ytd">Ytd</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="1y">1y</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="3y">3y</button>
+          <button type="button" class="goal-zoom-btn" data-zoom="5y">5y</button>
+          <button type="button" class="goal-zoom-btn active" data-zoom="All">All</button>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-primary);display:inline-block;"></span>Portfolio</span>
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-success);display:inline-block;border-top:2px dashed var(--text-success);"></span>Goal</span>
+          <span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--text-muted);opacity:0.5;display:inline-block;border-radius:2px;"></span>Planned Deposits</span>
+        </div>
+      </div>
+
+      <div id="goal-chart-container"></div>
+      <div id="goal-brush-container" style="margin-top:8px;"></div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 12px;">
+        <button type="button" class="goal-table-tab-btn active" data-tab="value">Value</button>
+        <button type="button" class="goal-table-tab-btn" data-tab="contribution">Contribution</button>
+        <button type="button" class="goal-table-tab-btn" data-tab="grosscontribution">Gross Contribution</button>
+        <button type="button" class="goal-table-tab-btn" data-tab="return">Return</button>
+        <button type="button" class="goal-table-tab-btn" data-tab="cumreturn">Cum. Return</button>
+      </div>
+      <div id="goal-table-container"></div>
+    </div>
+  </div>
 </div>
 
 <div id="tab-holdings" class="tab-content">
@@ -443,27 +555,6 @@
       <div id="pc-chart-container"><p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">เลือกหุ้นและ Benchmark แล้วกด "โหลดกราฟ"</p></div>
       <div id="pc-legend" style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;"></div>
     </div>
-    <div class="panel">
-      <p class="panel-title">📅 แผน DCA เทียบกับเงินฝาก-ถอนจริง</p>
-      <div style="margin-bottom:10px;max-width:220px;">
-        <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:4px;">เริ่มเดือน</label>
-        <input id="dca-start" type="date" />
-      </div>
-      <p style="font-size:12px;font-weight:500;margin:0 0 6px;color:var(--text-secondary);">ช่วงแผน (ต่อกันตามลำดับ)</p>
-      <div id="dca-tier-rows" style="margin-bottom:8px;"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button id="dca-add-tier" type="button" class="btn-secondary">+ เพิ่มช่วง</button>
-        <button id="dca-save" type="button">บันทึกแผน</button>
-      </div>
-      <p class="panel-sub" style="margin-top:10px;">เช่น ช่วงที่ 1: 6 เดือน เดือนละ 2,000 บาท ตามด้วยช่วงที่ 2: 6 เดือน เดือนละ 4,000 บาท — เทียบกับเงินฝาก-ถอนจริงที่บันทึกไว้ในส่วน "เงินฝาก/ถอนเงินสด" สะสมทีละเดือน</p>
-      <div id="dca-chart-container"></div>
-      <div style="max-height:320px;overflow-y:auto;margin-top:12px;border:1px solid var(--border);border-radius:8px;">
-      <table>
-        <thead style="position:sticky;top:0;background:var(--surface-1);"><tr><th>เดือน</th><th style="text-align:right;">DCA/เดือน</th><th style="text-align:right;">แผนสะสม</th><th style="text-align:right;">ฝาก-ถอนจริงสะสม</th><th style="text-align:right;">มูลค่าพอร์ตจริง</th><th style="text-align:right;">ส่วนต่าง</th></tr></thead>
-        <tbody id="dca-body"></tbody>
-      </table>
-      </div>
-    </div>
   </div>
 <div class="panel">
   <p class="panel-title">รายงานผลตอบแทนรายช่วง (TWRR เทียบ Benchmark)</p>
@@ -639,7 +730,9 @@ var snapshots = [];
 var benchmarkComponents = [{id:'b1', name:'', weight:100}];
 var benchIdCounter = 1;
 var txId = 0, divId = 0, cashId = 0, snapId = 0;
-var dcaPlan = {monthlyAmount: 0, startDate: '', months: 12};
+var goals = []; /* [{id, name, targetAmount, targetDate, annualReturnPct, dcaPlan:{startDate, tiers:[{id,months,monthlyAmount}]}}] */
+var activeGoalId = null;
+var goalIdCounter = 1;
 var targetAllocations = []; /* [{id, symbol, targetPercent}] */
 var targetAllocIdCounter = 1;
 var assetInfo = {}; /* {SYMBOL: {sector, industry, assetClass}} */
@@ -659,10 +752,12 @@ function createEmptyPortfolio(id, name){
     transactions: [], dividendEntries: [], cashFlows: [], currentPrices: {}, currentPricesForeign: {}, currencyOverrides: {}, referenceFxRate: null, snapshots: [],
     benchmarkComponents: [{id: 'b1', name: '', weight: 100}],
     dcaPlan: {startDate: '', tiers: [{id: 't1', months: 12, monthlyAmount: 0}]},
+    goals: [],
+    activeGoalId: null,
     targetAllocations: [],
     assetInfo: {},
     dividendForecasts: [],
-    counters: {txId: 0, divId: 0, cashId: 0, snapId: 0, benchIdCounter: 1, forecastId: 0}
+    counters: {txId: 0, divId: 0, cashId: 0, snapId: 0, benchIdCounter: 1, forecastId: 0, goalIdCounter: 1}
   };
 }
 
@@ -675,6 +770,35 @@ function migrateDcaPlan(plan){
     startDate: plan.startDate || '',
     tiers: [{id: 't1', months: plan.months || 12, monthlyAmount: plan.monthlyAmount || 0}]
   };
+}
+
+/* migrate goals: the app used to have one global DCA plan per portfolio with no target amount
+   or date. If a portfolio already has goals, just normalize each goal's dcaPlan shape. Otherwise,
+   if there's a legacy dcaPlan with real data in it, turn it into a starter goal so an existing
+   plan doesn't silently disappear once DCA moves into the Goal Tracker tab. */
+function migrateGoalsForPortfolio(p){
+  if(p.goals && p.goals.length){
+    return p.goals.map(function(g){
+      return {
+        id: g.id, name: g.name || 'เป้าหมายของฉัน',
+        targetAmount: Number(g.targetAmount) || 0,
+        targetDate: g.targetDate || '',
+        annualReturnPct: g.annualReturnPct !== undefined ? Number(g.annualReturnPct) : 6,
+        dcaPlan: migrateDcaPlan(g.dcaPlan)
+      };
+    });
+  }
+  var legacy = migrateDcaPlan(p.dcaPlan);
+  if(legacy.startDate && legacy.tiers.some(function(t){ return (parseFloat(t.monthlyAmount) || 0) > 0; })){
+    var totalMonths = legacy.tiers.reduce(function(s, t){ return s + (parseInt(t.months, 10) || 0); }, 0);
+    var endDate = addMonths(legacy.startDate, totalMonths);
+    return [{
+      id: 'g1', name: 'แผนเดิม (ย้ายจาก DCA)', targetAmount: 0,
+      targetDate: endDate.toISOString().slice(0, 10),
+      annualReturnPct: 6, dcaPlan: legacy
+    }];
+  }
+  return [];
 }
 
 function migrateFlatToPortfolios(flat){
@@ -691,10 +815,12 @@ function migrateFlatToPortfolios(flat){
       snapshots: flat.snapshots || [],
       benchmarkComponents: (flat.benchmarkComponents && flat.benchmarkComponents.length) ? flat.benchmarkComponents : [{id:'b1', name:'', weight:100}],
       dcaPlan: migrateDcaPlan(flat.dcaPlan),
+      goals: flat.goals || [],
+      activeGoalId: flat.activeGoalId || null,
       targetAllocations: flat.targetAllocations || [],
       assetInfo: flat.assetInfo || {},
       dividendForecasts: flat.dividendForecasts || [],
-      counters: flat.counters || {txId:0, divId:0, cashId:0, snapId:0, benchIdCounter:1, forecastId:0}
+      counters: flat.counters || {txId:0, divId:0, cashId:0, snapId:0, benchIdCounter:1, forecastId:0, goalIdCounter:1}
     }],
     activePortfolioId: 'p1',
     portfolioIdCounter: 1
@@ -713,11 +839,12 @@ function syncGlobalsToActivePortfolio(){
   active.referenceFxRate = referenceFxRate;
   active.snapshots = snapshots;
   active.benchmarkComponents = benchmarkComponents;
-  active.dcaPlan = dcaPlan;
+  active.goals = goals;
+  active.activeGoalId = activeGoalId;
   active.targetAllocations = targetAllocations;
   active.assetInfo = assetInfo;
   active.dividendForecasts = dividendForecasts;
-  active.counters = {txId:txId, divId:divId, cashId:cashId, snapId:snapId, benchIdCounter:benchIdCounter, forecastId:forecastId};
+  active.counters = {txId:txId, divId:divId, cashId:cashId, snapId:snapId, benchIdCounter:benchIdCounter, forecastId:forecastId, goalIdCounter:goalIdCounter};
 }
 
 function loadActivePortfolio(){
@@ -733,12 +860,15 @@ function loadActivePortfolio(){
   referenceFxRate = active.referenceFxRate || null;
   snapshots = active.snapshots || [];
   benchmarkComponents = (active.benchmarkComponents && active.benchmarkComponents.length) ? active.benchmarkComponents : [{id:'b1', name:'', weight:100}];
-  dcaPlan = migrateDcaPlan(active.dcaPlan);
+  goals = migrateGoalsForPortfolio(active);
+  activeGoalId = active.activeGoalId || (goals[0] ? goals[0].id : null);
+  if(!goals.some(function(g){ return g.id === activeGoalId; })){ activeGoalId = goals[0] ? goals[0].id : null; }
   targetAllocations = active.targetAllocations || [];
   assetInfo = active.assetInfo || {};
   dividendForecasts = active.dividendForecasts || [];
   var c = active.counters || {};
   txId = c.txId || 0; divId = c.divId || 0; cashId = c.cashId || 0; snapId = c.snapId || 0; benchIdCounter = c.benchIdCounter || 1; forecastId = c.forecastId || 0;
+  goalIdCounter = c.goalIdCounter || goals.length || 1;
 }
 
 function applyLoadedState(data){
@@ -1556,39 +1686,107 @@ function addMonths(dateStr, n){
   d.setMonth(d.getMonth() + n);
   return d;
 }
-function computeDCAPlan(){
-  if(!dcaPlan || !dcaPlan.startDate || !dcaPlan.tiers || !dcaPlan.tiers.length) return null;
-  var totalMonths = dcaPlan.tiers.reduce(function(s, t){ return s + (parseInt(t.months, 10) || 0); }, 0);
-  if(totalMonths <= 0) return null;
-  if(totalMonths > 600){ totalMonths = 600; } /* safety cap ~50 years in case of a mistyped huge value */
+/* ---------- Goal Tracker engine ----------
+   For a given goal, builds one row per calendar month from the plan's start date up to
+   whichever is later: the end of its DCA tiers, or its target date (capped at 50y).
+   Two trajectories are modeled every month:
+     - "Goal" (planValue): a pure plan simulation — starts at 0, each month adds that
+       month's planned deposit then compounds at the goal's assumed annual return rate.
+       This is what the green dashed line + "Plan" table rows are built from.
+     - "Portfolio" (portfolioValue): actual snapshot-based value for months up to today;
+       for months after today it switches to a forward projection that starts from the
+       latest known actual value and compounds the same way as the plan (using the SAME
+       planned deposit schedule, since we don't know future actual deposits yet). This is
+       what the solid line + "Actual" table rows are built from (actual rows are blank/–
+       for future months). */
+function monthsBetweenDates(a, b){
+  var da = new Date(a + 'T00:00:00'), db = new Date(b + 'T00:00:00');
+  return (db.getFullYear() - da.getFullYear()) * 12 + (db.getMonth() - da.getMonth());
+}
+function goalTierAmountForMonth(tiers, idx){
+  var acc = 0;
+  for(var i = 0; i < tiers.length; i++){
+    var tm = parseInt(tiers[i].months, 10) || 0;
+    if(idx < acc + tm) return parseFloat(tiers[i].monthlyAmount) || 0;
+    acc += tm;
+  }
+  return 0;
+}
+function computeGoalSeries(goal){
+  if(!goal || !goal.dcaPlan || !goal.dcaPlan.startDate || !goal.dcaPlan.tiers || !goal.dcaPlan.tiers.length) return null;
+  var tiers = goal.dcaPlan.tiers;
+  var startDate = goal.dcaPlan.startDate;
+  var planMonths = tiers.reduce(function(s, t){ return s + (parseInt(t.months, 10) || 0); }, 0);
+  var monthsToTarget = goal.targetDate ? monthsBetweenDates(startDate, goal.targetDate) : planMonths;
+  var totalMonths = Math.max(planMonths, monthsToTarget, 1);
+  if(totalMonths > 600){ totalMonths = 600; }
+  var annualRate = (parseFloat(goal.annualReturnPct) || 0) / 100;
+  var monthlyRate = Math.pow(1 + annualRate, 1 / 12) - 1;
+  var todayStr = new Date().toISOString().slice(0, 10);
+
   var rows = [];
-  var cumPlanned = 0;
-  var monthIdx = 0;
-  dcaPlan.tiers.forEach(function(tier){
-    var tierMonths = parseInt(tier.months, 10) || 0;
-    var tierAmount = parseFloat(tier.monthlyAmount) || 0;
-    for(var j = 0; j < tierMonths; j++){
-      if(monthIdx >= totalMonths) return;
-      var monthStart = addMonths(dcaPlan.startDate, monthIdx);
-      var cutoff = addMonths(dcaPlan.startDate, monthIdx + 1);
-      var cutoffStr = cutoff.toISOString().slice(0, 10);
-      cumPlanned += tierAmount;
-      var actualCum = cashFlows.filter(function(c){ return c.date < cutoffStr; })
+  var cumPlannedDeposit = 0, planValue = 0;
+  for(var m = 0; m < totalMonths; m++){
+    var monthStart = addMonths(startDate, m);
+    var cutoffDate = addMonths(startDate, m + 1);
+    var cutoffStr = cutoffDate.toISOString().slice(0, 10);
+    var deposit = goalTierAmountForMonth(tiers, m);
+    cumPlannedDeposit += deposit;
+    planValue = (planValue + deposit) * (1 + monthlyRate);
+    var isPast = cutoffStr <= todayStr;
+    var actualValue = null, actualNetCum = null, actualGrossCum = null;
+    if(isPast){
+      actualNetCum = cashFlows.filter(function(c){ return c.date < cutoffStr; })
         .reduce(function(sum, c){ return sum + (c.type === 'deposit' ? c.amount : -c.amount); }, 0);
+      actualGrossCum = cashFlows.filter(function(c){ return c.date < cutoffStr && c.type === 'deposit'; })
+        .reduce(function(sum, c){ return sum + c.amount; }, 0);
       var priorSnapshots = snapshots.filter(function(s){ return s.date < cutoffStr; }).sort(function(a,b){ return a.date < b.date ? 1 : -1; });
-      var portfolioValue = priorSnapshots.length ? priorSnapshots[0].value : null;
-      rows.push({
-        label: monthStart.toLocaleDateString('th-TH', {month: 'short', year: '2-digit'}),
-        tierAmount: tierAmount,
-        planned: cumPlanned,
-        actual: actualCum,
-        portfolioValue: portfolioValue,
-        diff: actualCum - cumPlanned
-      });
-      monthIdx++;
+      actualValue = priorSnapshots.length ? priorSnapshots[0].value : null;
+    }
+    rows.push({
+      idx: m, date: cutoffStr, year: monthStart.getFullYear(), month: monthStart.getMonth() + 1,
+      label: monthStart.toLocaleDateString('th-TH', {month: 'short', year: '2-digit'}),
+      deposit: deposit, cumPlannedDeposit: cumPlannedDeposit, planValue: planValue,
+      isPast: isPast, actualValue: actualValue, actualNetCum: actualNetCum, actualGrossCum: actualGrossCum
+    });
+  }
+
+  /* forward-projected "Portfolio" line: actual up to today, projected afterwards */
+  var lastActual = null;
+  for(var i = rows.length - 1; i >= 0; i--){ if(rows[i].actualValue !== null){ lastActual = rows[i].actualValue; break; } }
+  var projValue = lastActual !== null ? lastActual : 0;
+  var projStarted = false;
+  rows.forEach(function(r){
+    if(r.isPast){
+      r.portfolioValue = r.actualValue;
+    } else {
+      if(!projStarted){ projValue = lastActual !== null ? lastActual : 0; projStarted = true; }
+      projValue = (projValue + r.deposit) * (1 + monthlyRate);
+      r.portfolioValue = projValue;
     }
   });
-  return rows;
+
+  /* monthly (non-cumulative) figures + returns, needs previous row for a delta */
+  var prevActualCum = 0, prevActualVal = null, prevPlanVal = 0, cumPlanReturn = 0, cumActualReturn = null;
+  rows.forEach(function(r){
+    r.actualMonthlyNet = r.actualNetCum !== null ? (r.actualNetCum - prevActualCum) : null;
+    if(r.actualNetCum !== null) prevActualCum = r.actualNetCum;
+    r.planReturn = (r.planValue - prevPlanVal) - r.deposit;
+    cumPlanReturn += r.planReturn;
+    r.cumPlanReturn = cumPlanReturn;
+    prevPlanVal = r.planValue;
+    if(r.actualValue !== null && prevActualVal !== null){
+      r.actualReturn = (r.actualValue - prevActualVal) - (r.actualMonthlyNet || 0);
+      cumActualReturn = (cumActualReturn || 0) + r.actualReturn;
+      r.cumActualReturn = cumActualReturn;
+    } else {
+      r.actualReturn = null;
+      r.cumActualReturn = r.isPast ? cumActualReturn : null;
+    }
+    if(r.actualValue !== null) prevActualVal = r.actualValue;
+  });
+
+  return {rows: rows, monthlyRate: monthlyRate, annualRate: annualRate, startDate: startDate, totalMonths: totalMonths, todayStr: todayStr};
 }
 
 /* ---------- historical price fetch (for stock vs benchmark chart) ---------- */
@@ -1989,7 +2187,6 @@ function renderBenchRows(){
   }
 
   renderAllocRows();
-  populateDcaForm();
 }
 
 function renderWeightTotal(){
@@ -2073,78 +2270,389 @@ document.getElementById('alloc-add-row').addEventListener('click', function(){
   render();
 });
 
-/* ---------- DCA plan form ---------- */
-var dcaTierIdCounter = 1;
+/* ---------- Goal Tracker: state + UI ---------- */
+var goalTierIdCounter = 1;
+var goalPeriodFilter = 'all';   /* 'all' | 'month' | 'year' — top-left pill filter, controls which table rows are shown */
+var goalZoomRange = 'All';      /* chart zoom window: 1m/3m/6m/Ytd/1y/3y/5y/All */
+var goalTableTab = 'value';     /* 'value' | 'contribution' | 'grosscontribution' | 'return' | 'cumreturn' */
+var goalEditing = false;        /* whether the Edit Plan panel is open */
+var goalBrush = {start: null, end: null}; /* manual drag-brush override (month index), null = follow goalZoomRange */
 
-function populateDcaForm(){
-  var startEl = document.getElementById('dca-start');
-  if(document.activeElement !== startEl){ startEl.value = dcaPlan.startDate || ''; }
-  renderDcaTierRows();
+function activeGoal(){
+  return goals.filter(function(g){ return g.id === activeGoalId; })[0] || null;
 }
 
-function renderDcaTierRows(){
-  var container = document.getElementById('dca-tier-rows');
-  var active = document.activeElement;
-  var restore = null;
-  if(active && container.contains(active) && active.tagName === 'INPUT'){
-    restore = {cls: active.classList.length ? active.classList[0] : '', id: active.getAttribute('data-id'), start: active.selectionStart, end: active.selectionEnd};
-  }
-  if(!dcaPlan.tiers || !dcaPlan.tiers.length){ dcaPlan.tiers = [{id: 't1', months: 12, monthlyAmount: 0}]; }
-  var tiers = dcaPlan.tiers;
+function renderGoalSwitcher(){
+  var wrap = document.getElementById('goal-switcher');
+  if(!wrap) return;
+  wrap.innerHTML = goals.map(function(g){
+    return '<button type="button" class="goal-pill' + (g.id === activeGoalId ? ' active' : '') + '" data-id="' + g.id + '">' + escapeHtml(g.name || 'เป้าหมาย') + '</button>';
+  }).join('') + '<button type="button" id="goal-add-btn" class="goal-pill goal-pill-add">+ เพิ่มเป้าหมาย</button>';
+  Array.prototype.forEach.call(wrap.querySelectorAll('.goal-pill[data-id]'), function(btn){
+    btn.addEventListener('click', function(){
+      activeGoalId = this.getAttribute('data-id');
+      goalEditing = false;
+      goalBrush = {start: null, end: null};
+      render();
+    });
+  });
+  document.getElementById('goal-add-btn').addEventListener('click', function(){
+    goalIdCounter++;
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var g = {
+      id: 'g' + goalIdCounter, name: 'เป้าหมายใหม่ ' + goals.length + 1,
+      targetAmount: 100000, targetDate: '', annualReturnPct: 6,
+      dcaPlan: {startDate: todayStr, tiers: [{id: 't1', months: 12, monthlyAmount: 1000}]}
+    };
+    goals.push(g);
+    activeGoalId = g.id;
+    goalEditing = true;
+    render();
+  });
+}
+
+function populateGoalEditForm(goal){
+  document.getElementById('goal-name-input').value = goal.name || '';
+  document.getElementById('goal-amount-input').value = goal.targetAmount || 0;
+  document.getElementById('goal-date-input').value = goal.targetDate || '';
+  document.getElementById('goal-rate-input').value = goal.annualReturnPct;
+  document.getElementById('goal-dca-start-input').value = goal.dcaPlan.startDate || '';
+  renderGoalTierRows(goal);
+}
+
+function renderGoalTierRows(goal){
+  var container = document.getElementById('goal-tier-rows');
+  if(!goal.dcaPlan.tiers || !goal.dcaPlan.tiers.length){ goal.dcaPlan.tiers = [{id: 't1', months: 12, monthlyAmount: 0}]; }
+  var tiers = goal.dcaPlan.tiers;
   container.innerHTML = tiers.map(function(t, i){
     return '<div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center;">' +
       '<span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">ช่วงที่ ' + (i + 1) + '</span>' +
-      '<input type="number" class="dca-tier-months-input" data-id="' + t.id + '" min="1" step="1" placeholder="จำนวนเดือน" value="' + t.months + '" />' +
-      '<input type="number" class="dca-tier-amount-input" data-id="' + t.id + '" min="0" step="100" placeholder="บาท/เดือน" value="' + t.monthlyAmount + '" />' +
-      (tiers.length > 1 ? '<button type="button" class="dca-tier-remove-btn btn-secondary" data-id="' + t.id + '">ลบ</button>' : '<span></span>') +
+      '<input type="number" class="goal-tier-months-input" data-id="' + t.id + '" min="1" step="1" placeholder="จำนวนเดือน" value="' + t.months + '" />' +
+      '<input type="number" class="goal-tier-amount-input" data-id="' + t.id + '" min="0" step="100" placeholder="บาท/เดือน" value="' + t.monthlyAmount + '" />' +
+      (tiers.length > 1 ? '<button type="button" class="goal-tier-remove-btn btn-secondary" data-id="' + t.id + '">ลบ</button>' : '<span></span>') +
       '</div>';
   }).join('');
-
-  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-months-input'), function(inp){
+  Array.prototype.forEach.call(container.querySelectorAll('.goal-tier-months-input'), function(inp){
     inp.addEventListener('input', function(){
       var id = this.getAttribute('data-id');
-      var t = dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
+      var t = goal.dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
       if(t) t.months = parseInt(this.value, 10) || 0;
-      render();
     });
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-amount-input'), function(inp){
+  Array.prototype.forEach.call(container.querySelectorAll('.goal-tier-amount-input'), function(inp){
     inp.addEventListener('input', function(){
       var id = this.getAttribute('data-id');
-      var t = dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
+      var t = goal.dcaPlan.tiers.filter(function(x){ return x.id === id; })[0];
       if(t) t.monthlyAmount = parseFloat(this.value) || 0;
-      render();
     });
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.dca-tier-remove-btn'), function(btn){
+  Array.prototype.forEach.call(container.querySelectorAll('.goal-tier-remove-btn'), function(btn){
     btn.addEventListener('click', function(){
       var id = this.getAttribute('data-id');
-      dcaPlan.tiers = dcaPlan.tiers.filter(function(x){ return x.id !== id; });
-      renderDcaTierRows();
+      goal.dcaPlan.tiers = goal.dcaPlan.tiers.filter(function(x){ return x.id !== id; });
+      renderGoalTierRows(goal);
+    });
+  });
+}
+
+function wireGoalEditFormOnce(){
+  if(wireGoalEditFormOnce._wired) return;
+  wireGoalEditFormOnce._wired = true;
+  document.getElementById('goal-add-tier').addEventListener('click', function(){
+    var goal = activeGoal();
+    if(!goal) return;
+    goalTierIdCounter++;
+    goal.dcaPlan.tiers.push({id: 't' + goalTierIdCounter, months: 6, monthlyAmount: 0});
+    renderGoalTierRows(goal);
+  });
+  document.getElementById('goal-save-btn').addEventListener('click', function(){
+    var goal = activeGoal();
+    if(!goal) return;
+    goal.name = document.getElementById('goal-name-input').value.trim() || 'เป้าหมายของฉัน';
+    goal.targetAmount = parseFloat(document.getElementById('goal-amount-input').value) || 0;
+    goal.targetDate = document.getElementById('goal-date-input').value || '';
+    goal.annualReturnPct = parseFloat(document.getElementById('goal-rate-input').value) || 0;
+    goal.dcaPlan.startDate = document.getElementById('goal-dca-start-input').value || '';
+    goalEditing = false;
+    render();
+  });
+  document.getElementById('goal-cancel-btn').addEventListener('click', function(){
+    goalEditing = false;
+    render();
+  });
+  document.getElementById('goal-delete-btn').addEventListener('click', function(){
+    var goal = activeGoal();
+    if(!goal) return;
+    if(!window.confirm('ลบเป้าหมาย "' + (goal.name || '') + '" ใช่หรือไม่?')) return;
+    goals = goals.filter(function(g){ return g.id !== goal.id; });
+    activeGoalId = goals[0] ? goals[0].id : null;
+    goalEditing = false;
+    render();
+  });
+  document.getElementById('goal-edit-open-btn').addEventListener('click', function(){
+    goalEditing = !goalEditing;
+    render();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-period-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      goalPeriodFilter = this.getAttribute('data-period');
       render();
     });
   });
-
-  if(restore && restore.cls){
-    var newEl = container.querySelector('.' + restore.cls + '[data-id="' + restore.id + '"]');
-    if(newEl){
-      newEl.focus();
-      if(typeof newEl.setSelectionRange === 'function'){ try{ newEl.setSelectionRange(restore.start, restore.end); }catch(e){} }
-    }
-  }
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-zoom-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      goalZoomRange = this.getAttribute('data-zoom');
+      goalBrush = {start: null, end: null};
+      render();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-table-tab-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      goalTableTab = this.getAttribute('data-tab');
+      render();
+    });
+  });
+  /* the brush's own range-input listeners are wired inside renderGoalBrush() each time it
+     rebuilds that markup, since those <input> elements are recreated on every render */
 }
 
-document.getElementById('dca-add-tier').addEventListener('click', function(){
-  if(!dcaPlan.tiers){ dcaPlan.tiers = []; }
-  dcaTierIdCounter++;
-  dcaPlan.tiers.push({id: 't' + dcaTierIdCounter, months: 6, monthlyAmount: 0});
-  renderDcaTierRows();
-});
+/* returns the [startIdx, endIdx] (inclusive) window of `rows` currently in view,
+   from either the manual brush or the active zoom-range button */
+function goalVisibleRange(rows){
+  var n = rows.length;
+  if(!n) return [0, 0];
+  if(goalBrush.start !== null && goalBrush.end !== null){
+    return [Math.max(0, goalBrush.start), Math.min(n - 1, goalBrush.end)];
+  }
+  if(goalZoomRange === 'All') return [0, n - 1];
+  var monthsMap = {'1m':1, '3m':3, '6m':6, '1y':12, '3y':36, '5y':60};
+  if(goalZoomRange === 'Ytd'){
+    var thisYear = new Date().getFullYear();
+    var firstIdx = rows.findIndex(function(r){ return r.year === thisYear; });
+    return [firstIdx === -1 ? 0 : firstIdx, n - 1];
+  }
+  var span = monthsMap[goalZoomRange] || n;
+  return [Math.max(0, n - span), n - 1];
+}
 
-document.getElementById('dca-save').addEventListener('click', function(){
-  dcaPlan.startDate = document.getElementById('dca-start').value;
-  render();
-});
+function goalCurrentValue(){
+  /* live current market value in THB, same total used at the top of the page */
+  var holdings = computeHoldings();
+  var total = 0;
+  Object.keys(holdings).forEach(function(sym){
+    var h = holdings[sym];
+    if(h.qty <= 0.0001) return;
+    var price = currentPrices[sym] !== undefined ? currentPrices[sym] : (h.cost / h.qty);
+    total += h.qty * price;
+  });
+  return total;
+}
+
+function renderGoalTracker(){
+  var emptyState = document.getElementById('goal-empty-state');
+  var body = document.getElementById('goal-body');
+  renderGoalSwitcher();
+  var goal = activeGoal();
+  if(!goal){
+    if(emptyState) emptyState.style.display = 'block';
+    if(body) body.style.display = 'none';
+    return;
+  }
+  if(emptyState) emptyState.style.display = 'none';
+  if(body) body.style.display = 'block';
+  wireGoalEditFormOnce();
+
+  var editPanel = document.getElementById('goal-edit-panel');
+  var editBtn = document.getElementById('goal-edit-open-btn');
+  editPanel.style.display = goalEditing ? 'block' : 'none';
+  editBtn.textContent = goalEditing ? 'ปิดแก้ไข' : '✏️ Edit Plan';
+  if(goalEditing){ populateGoalEditForm(goal); }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-period-btn'), function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-period') === goalPeriodFilter);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-zoom-btn'), function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-zoom') === goalZoomRange && goalBrush.start === null);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.goal-table-tab-btn'), function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === goalTableTab);
+  });
+
+  var currentValue = goalCurrentValue();
+  var progressPct = goal.targetAmount > 0 ? Math.max(0, Math.min(100, (currentValue / goal.targetAmount) * 100)) : 0;
+  document.getElementById('goal-current-value').textContent = '฿' + fmt(currentValue);
+  document.getElementById('goal-target-value').textContent = '฿' + fmt(goal.targetAmount);
+  document.getElementById('goal-progress-fill').style.width = progressPct.toFixed(1) + '%';
+  document.getElementById('goal-progress-label').textContent = progressPct.toFixed(1) + '%';
+
+  var series = computeGoalSeries(goal);
+  if(!series || !series.rows.length){
+    document.getElementById('goal-chart-container').innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">กรอกเดือนเริ่มต้นและแผนเงินฝาก แล้วกด "บันทึกแผน" เพื่อดูกราฟ</p>';
+    document.getElementById('goal-brush-container').innerHTML = '';
+    document.getElementById('goal-table-container').innerHTML = '';
+    return;
+  }
+  window._goalSeriesCache = series; /* used by renderGoalChart() so brush-drag can redraw without recomputing */
+  renderGoalChart();
+  renderGoalBrush(series.rows);
+  renderGoalTable(series.rows, goal);
+}
+
+function renderGoalChart(){
+  var series = window._goalSeriesCache;
+  if(!series) return;
+  var allRows = series.rows;
+  var range = goalVisibleRange(allRows);
+  var rows = allRows.slice(range[0], range[1] + 1);
+  var container = document.getElementById('goal-chart-container');
+  if(!rows.length){ container.innerHTML = ''; return; }
+
+  var w = 900, h = 300, padL = 55, padR = 15, padT = 15, padB = 26;
+  var allVals = [0];
+  rows.forEach(function(r){
+    allVals.push(r.cumPlannedDeposit, r.planValue);
+    if(r.portfolioValue !== null && r.portfolioValue !== undefined) allVals.push(r.portfolioValue);
+  });
+  var maxV = Math.max.apply(null, allVals);
+  var minV = 0;
+  if(maxV <= 0){ maxV = 1; }
+  maxV *= 1.08;
+
+  function xPos(i){ return padL + (w - padL - padR) * (rows.length <= 1 ? 0 : i / (rows.length - 1)); }
+  function yPos(v){ return padT + (h - padT - padB) * (1 - (v - minV) / (maxV - minV)); }
+
+  var gridLines = '';
+  for(var g = 0; g <= 4; g++){
+    var v = minV + (maxV - minV) * g / 4;
+    var y = yPos(v);
+    gridLines += '<line x1="' + padL + '" y1="' + y + '" x2="' + (w - padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1" />';
+    gridLines += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" font-size="10" fill="var(--text-muted)" text-anchor="end">' + fmtCompact(v) + '</text>';
+  }
+
+  /* x labels: one per calendar year that appears in the visible window */
+  var yearFirstIdx = {};
+  rows.forEach(function(r, i){ if(yearFirstIdx[r.year] === undefined) yearFirstIdx[r.year] = i; });
+  var xLabels = Object.keys(yearFirstIdx).map(function(yr){
+    return '<text x="' + xPos(yearFirstIdx[yr]) + '" y="' + (h - padB + 18) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle">' + yr + '</text>';
+  }).join('');
+
+  var depositPts = rows.map(function(r, i){ return xPos(i) + ',' + yPos(r.cumPlannedDeposit); });
+  var areaPts = [padL + ',' + yPos(0)].concat(depositPts).concat([xPos(rows.length - 1) + ',' + yPos(0)]).join(' ');
+  var planPts = rows.map(function(r, i){ return xPos(i) + ',' + yPos(r.planValue); }).join(' ');
+  var portfolioSegments = []; /* only draw across consecutive rows that both have a value */
+  var seg = [];
+  rows.forEach(function(r, i){
+    if(r.portfolioValue !== null && r.portfolioValue !== undefined){
+      seg.push(xPos(i) + ',' + yPos(r.portfolioValue));
+    } else if(seg.length){ portfolioSegments.push(seg); seg = []; }
+  });
+  if(seg.length) portfolioSegments.push(seg);
+  var portfolioPolys = portfolioSegments.map(function(s){
+    return '<polyline points="' + s.join(' ') + '" fill="none" stroke="var(--text-primary)" stroke-width="2.5" />';
+  }).join('');
+
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' +
+    gridLines +
+    '<polygon points="' + areaPts + '" fill="var(--text-muted)" opacity="0.25" stroke="none" />' +
+    '<polyline points="' + depositPts.join(' ') + '" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />' +
+    '<polyline points="' + planPts + '" fill="none" stroke="var(--text-success)" stroke-width="2" stroke-dasharray="5,4" />' +
+    portfolioPolys +
+    xLabels + '</svg>';
+  container.innerHTML = svg;
+}
+
+function fmtCompact(n){
+  n = Number(n) || 0;
+  if(Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if(Math.abs(n) >= 1000) return (n / 1000).toFixed(0) + 'K';
+  return n.toFixed(0);
+}
+
+function renderGoalBrush(rows){
+  var container = document.getElementById('goal-brush-container');
+  if(!rows.length){ container.innerHTML = ''; return; }
+  var n = rows.length;
+  var range = goalBrush.start !== null ? goalBrush : {start: 0, end: n - 1};
+  /* mini background chart of planned-deposit shape, purely decorative */
+  var w = 900, h = 46, padL = 4, padR = 4;
+  var maxV = Math.max.apply(null, rows.map(function(r){ return r.cumPlannedDeposit; }).concat([1]));
+  function xPos(i){ return padL + (w - padL - padR) * (n <= 1 ? 0 : i / (n - 1)); }
+  function yPos(v){ return 4 + (h - 8) * (1 - v / maxV); }
+  var pts = rows.map(function(r, i){ return xPos(i) + ',' + yPos(r.cumPlannedDeposit); });
+  var areaPts = [padL + ',' + (h - 4)].concat(pts).concat([xPos(n - 1) + ',' + (h - 4)]).join(' ');
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:' + h + 'px;display:block;">' +
+    '<polygon points="' + areaPts + '" fill="var(--text-accent)" opacity="0.35" stroke="none" />' +
+    '</svg>';
+  container.innerHTML =
+    '<div style="position:relative;">' + svg +
+    '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">' +
+    '<input type="range" id="goal-brush-start" min="0" max="' + (n - 1) + '" step="1" value="' + range.start + '" style="flex:1;" />' +
+    '<input type="range" id="goal-brush-end" min="0" max="' + (n - 1) + '" step="1" value="' + range.end + '" style="flex:1;" />' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px;">' +
+    '<span>' + rows[range.start].label + '</span><span>' + rows[range.end].label + '</span>' +
+    '</div></div>';
+  var brushStartEl = document.getElementById('goal-brush-start');
+  var brushEndEl = document.getElementById('goal-brush-end');
+  function onBrushInput(){
+    var s = parseInt(brushStartEl.value, 10), e = parseInt(brushEndEl.value, 10);
+    if(s > e){ var tmp = s; s = e; e = tmp; }
+    goalBrush = {start: s, end: e};
+    renderGoalChart();
+  }
+  brushStartEl.addEventListener('input', onBrushInput);
+  brushEndEl.addEventListener('input', onBrushInput);
+}
+
+var GOAL_TABLE_TAB_LABELS = {value: 'Value', contribution: 'Contribution', grosscontribution: 'Gross Contribution', return: 'Return', cumreturn: 'Cum. Return'};
+function goalCellForTab(tab, row){
+  switch(tab){
+    case 'value': return {plan: row.planValue, actual: row.actualValue};
+    case 'contribution': return {plan: row.deposit, actual: row.actualMonthlyNet};
+    case 'grosscontribution': return {plan: row.cumPlannedDeposit, actual: row.actualGrossCum};
+    case 'return': return {plan: row.planReturn, actual: row.actualReturn};
+    case 'cumreturn': return {plan: row.cumPlanReturn, actual: row.cumActualReturn};
+    default: return {plan: null, actual: null};
+  }
+}
+function renderGoalTable(rows, goal){
+  var container = document.getElementById('goal-table-container');
+  var todayYear = new Date().getFullYear(), todayMonth = new Date().getMonth() + 1;
+  var filteredRows = rows;
+  if(goalPeriodFilter === 'year'){ filteredRows = rows.filter(function(r){ return r.year === todayYear; }); }
+  else if(goalPeriodFilter === 'month'){ filteredRows = rows.filter(function(r){ return r.year === todayYear && r.month === todayMonth; }); }
+  if(!filteredRows.length){
+    container.innerHTML = '<p style="padding:1rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ไม่มีข้อมูลในช่วงที่เลือก</p>';
+    return;
+  }
+  var byYear = {};
+  var yearOrder = [];
+  filteredRows.forEach(function(r){
+    if(!byYear[r.year]){ byYear[r.year] = {}; yearOrder.push(r.year); }
+    byYear[r.year][r.month] = r;
+  });
+  var thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function cellHtml(row){
+    if(!row) return '<td style="text-align:center;color:var(--text-muted);">–</td>';
+    var c = goalCellForTab(goalTableTab, row);
+    var isCurrent = row.year === todayYear && row.month === todayMonth;
+    var planStr = c.plan !== null && c.plan !== undefined ? fmtCompact(c.plan) : '–';
+    var actualStr = c.actual !== null && c.actual !== undefined ? fmtCompact(c.actual) : '–';
+    return '<td style="text-align:center;' + (isCurrent ? 'background:var(--bg-accent);border-radius:4px;' : '') + '">' +
+      '<div style="font-weight:600;color:var(--text-success);">' + planStr + '</div>' +
+      '<div style="font-size:11px;color:var(--text-secondary);">' + actualStr + '</div></td>';
+  }
+  var thead = '<tr><th>ปี</th>' + thMonths.map(function(m){ return '<th style="text-align:center;">' + m + '</th>'; }).join('') + '</tr>';
+  var tbody = yearOrder.map(function(yr){
+    var cells = '';
+    for(var m = 1; m <= 12; m++){ cells += cellHtml(byYear[yr][m]); }
+    return '<tr><td style="font-weight:600;">' + yr + '</td>' + cells + '</tr>';
+  }).join('');
+  container.innerHTML =
+    '<div style="max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:8px;">' +
+    '<table style="min-width:760px;"><thead style="position:sticky;top:0;background:var(--surface-1);">' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>' +
+    '<p style="font-size:11px;color:var(--text-muted);margin-top:6px;">แต่ละช่อง: บรรทัดบน (สีเขียว) = ตามแผน, บรรทัดล่าง = ของจริง</p>';
+}
 
 function renderSnapshotBenchInputs(){
   var container = document.getElementById('bench-value-inputs');
@@ -2678,61 +3186,8 @@ function render(){
   }).join('');
   document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="' + (8 + benchmarkComponents.length) + '" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
 
-  /* ---------- DCA plan table + chart ---------- */
-  var dcaRows = computeDCAPlan();
-  if(dcaRows){
-    document.getElementById('dca-body').innerHTML = dcaRows.map(function(row){
-      return '<tr>' +
-        '<td style="color:var(--text-secondary);">' + row.label + '</td>' +
-        '<td style="text-align:right;">' + fmt(row.tierAmount) + '</td>' +
-        '<td style="text-align:right;">' + fmt(row.planned) + '</td>' +
-        '<td style="text-align:right;">' + fmt(row.actual) + '</td>' +
-        '<td style="text-align:right;">' + (row.portfolioValue !== null ? fmt(row.portfolioValue) : '<span style="color:var(--text-muted);">-</span>') + '</td>' +
-        '<td style="text-align:right;color:' + (row.diff >= 0 ? 'var(--text-success)' : 'var(--text-danger)') + ';">' + (row.diff>=0?'+':'') + fmt(row.diff) + '</td>' +
-        '</tr>';
-    }).join('');
-    /* DCA chart uses month-index x-axis rather than calendar dates (renderTimeSeriesChart is date-based),
-       so build a small dedicated bar/line SVG inline here instead of reusing that function */
-    (function(){
-      var container = document.getElementById('dca-chart-container');
-      var w = 680, h = 260, padL = 60, padR = 15, padT = 15, padB = 30;
-      var allVals = [];
-      dcaRows.forEach(function(r){ allVals.push(r.planned); allVals.push(r.actual); if(r.portfolioValue !== null){ allVals.push(r.portfolioValue); } });
-      var maxV = Math.max.apply(null, allVals.concat([0]));
-      var minV = Math.min.apply(null, allVals.concat([0]));
-      if(maxV === minV){ maxV += 1; }
-      var pad = (maxV - minV) * 0.1;
-      maxV += pad; minV -= pad;
-      function xPos(i){ return padL + (w - padL - padR) * (dcaRows.length <= 1 ? 0.5 : i / (dcaRows.length - 1)); }
-      function yPos(v){ return padT + (h - padT - padB) * (1 - (v - minV) / (maxV - minV)); }
-      var gridLines = '';
-      for(var g = 0; g <= 4; g++){
-        var v = minV + (maxV - minV) * g / 4;
-        var y = yPos(v);
-        gridLines += '<line x1="' + padL + '" y1="' + y + '" x2="' + (w - padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1" />';
-        gridLines += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" font-size="10" fill="var(--text-muted)" text-anchor="end">' + fmt(v) + '</text>';
-      }
-      var labelIdxs = dcaRows.length <= 6 ? dcaRows.map(function(_,i){return i;}) : [0, Math.floor((dcaRows.length-1)/2), dcaRows.length-1];
-      var xLabels = labelIdxs.map(function(i){ return '<text x="' + xPos(i) + '" y="' + (h - padB + 18) + '" font-size="10" fill="var(--text-muted)" text-anchor="middle">' + dcaRows[i].label + '</text>'; }).join('');
-      var plannedPts = dcaRows.map(function(r,i){ return xPos(i) + ',' + yPos(r.planned); }).join(' ');
-      var actualPts = dcaRows.map(function(r,i){ return xPos(i) + ',' + yPos(r.actual); }).join(' ');
-      var valuePts = dcaRows.map(function(r,i){ return r.portfolioValue !== null ? (xPos(i) + ',' + yPos(r.portfolioValue)) : null; }).filter(function(p){ return p !== null; }).join(' ');
-      var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;">' + gridLines +
-        '<polyline points="' + plannedPts + '" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-dasharray="5,4" />' +
-        '<polyline points="' + actualPts + '" fill="none" stroke="var(--text-accent)" stroke-width="2.5" />' +
-        (valuePts ? '<polyline points="' + valuePts + '" fill="none" stroke="var(--text-success)" stroke-width="2.5" />' : '') +
-        xLabels + '</svg>';
-      container.innerHTML = svg +
-        '<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">' +
-        '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-accent);display:inline-block;"></span>ฝาก-ถอนจริงสะสม</span>' +
-        '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-secondary);display:inline-block;border-top:2px dashed var(--text-secondary);"></span>แผน DCA สะสม</span>' +
-        '<span style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;"><span style="width:16px;height:2px;background:var(--text-success);display:inline-block;"></span>มูลค่าพอร์ตจริง</span>' +
-        '</div>';
-    })();
-  } else {
-    document.getElementById('dca-body').innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);">กรอกเดือนเริ่มต้นและอย่างน้อย 1 ช่วงแผน (จำนวนเดือน + บาท/เดือน) แล้วกด "บันทึกแผน" เพื่อดูตาราง</td></tr>';
-    document.getElementById('dca-chart-container').innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่ได้ตั้งแผน DCA</p>';
-  }
+  /* ---------- Goal Tracker tab ---------- */
+  renderGoalTracker();
 
   /* ---------- allocation vs target ---------- */
   (function(){
@@ -3504,7 +3959,7 @@ applyTheme(savedTheme);
 updatePinButtons();
 
 /* ---------- tabs ---------- */
-var TAB_NAMES = ['overview', 'holdings', 'performance', 'dividends', 'allocation'];
+var TAB_NAMES = ['overview', 'goals', 'holdings', 'performance', 'dividends', 'allocation'];
 function switchTab(tabName){
   TAB_NAMES.forEach(function(name){
     var btn = document.getElementById('tab-btn-' + name);
