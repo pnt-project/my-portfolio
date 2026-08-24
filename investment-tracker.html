@@ -99,6 +99,10 @@
   .it-wrap .goal-progress-track { background:var(--surface-2); border:1px solid var(--border); border-radius:999px; height:22px; width:100%; position:relative; overflow:hidden; }
   .it-wrap .goal-progress-fill { background:var(--text-success); height:100%; border-radius:999px; transition:width 0.3s ease; }
   .it-wrap .goal-progress-label { position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:600; color:#fff; }
+  .it-wrap .hc-groupby-btn, .it-wrap .hc-metric-btn, .it-wrap .hc-range-btn, .it-wrap .hc-currency-btn { background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:500; cursor:pointer; }
+  .it-wrap .hc-groupby-btn.active, .it-wrap .hc-metric-btn.active, .it-wrap .hc-range-btn.active, .it-wrap .hc-currency-btn.active { background:var(--text-primary); color:var(--surface-1); border-color:var(--text-primary); }
+  .it-wrap .hc-view-btn { background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:14px; cursor:pointer; line-height:1; }
+  .it-wrap .hc-view-btn.active { background:var(--text-accent); border-color:var(--text-accent); }
   .it-wrap .tab-content { display:none; }
   .it-wrap .tab-content.active { display:block; }
   .it-wrap .tab-layout { display:grid; grid-template-columns:1fr; gap:20px; align-items:start; }
@@ -188,11 +192,11 @@
 <main class="app-main">
 <div class="tab-nav">
   <button type="button" class="tab-btn" id="tab-btn-overview">🏠 Overview</button>
-  <button type="button" class="tab-btn" id="tab-btn-goals">🎯 Goal Tracker</button>
   <button type="button" class="tab-btn" id="tab-btn-holdings">💼 Holdings</button>
   <button type="button" class="tab-btn" id="tab-btn-performance">📈 Performance</button>
   <button type="button" class="tab-btn" id="tab-btn-dividends">🪙 Dividends</button>
   <button type="button" class="tab-btn" id="tab-btn-allocation">🥧 Allocation</button>
+  <button type="button" class="tab-btn" id="tab-btn-goals">🎯 Goal Tracker</button>
 </div>
 
 <div id="tab-overview" class="tab-content">
@@ -356,6 +360,45 @@
 </div>
 
 <div id="tab-holdings" class="tab-content">
+  <div class="panel">
+    <p class="panel-title">📊 My Holdings</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="hc-groupby-btn active" data-groupby="ticker">Ticker</button>
+          <button type="button" class="hc-groupby-btn" data-groupby="sector">Sector</button>
+          <button type="button" class="hc-groupby-btn" data-groupby="industry">Industry</button>
+          <button type="button" class="hc-groupby-btn" data-groupby="country">Country</button>
+          <button type="button" class="hc-groupby-btn" data-groupby="assetType">Assets Type</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <button type="button" class="hc-metric-btn active" data-metric="value">Gain (Value)</button>
+          <button type="button" class="hc-metric-btn" data-metric="percent">Gain (%)</button>
+          <span style="width:1px;height:18px;background:var(--border);margin:0 4px;"></span>
+          <button type="button" class="hc-currency-btn active" data-currency="THB">฿ THB</button>
+          <button type="button" class="hc-currency-btn" data-currency="USD">$ USD</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <button type="button" class="hc-range-btn" data-range="1d">1d</button>
+          <button type="button" class="hc-range-btn" data-range="1w">1w</button>
+          <button type="button" class="hc-range-btn" data-range="1m">1m</button>
+          <button type="button" class="hc-range-btn" data-range="3m">3m</button>
+          <button type="button" class="hc-range-btn" data-range="6m">6m</button>
+          <button type="button" class="hc-range-btn" data-range="Ytd">Ytd</button>
+          <button type="button" class="hc-range-btn" data-range="1y">1y</button>
+          <button type="button" class="hc-range-btn active" data-range="All">All</button>
+          <span id="hc-loading" style="font-size:11px;color:var(--text-muted);display:none;margin-left:4px;">⏳ กำลังดึงราคาย้อนหลัง...</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="hc-view-btn active" data-view="bar" title="Bar chart">📊</button>
+        <button type="button" class="hc-view-btn" data-view="treemap" title="Treemap">🗂️</button>
+      </div>
+    </div>
+    <div id="holdings-chart-container"></div>
+    <p id="hc-fx-note" style="font-size:11px;color:var(--text-muted);margin-top:8px;display:none;"></p>
+  </div>
+
   <div class="tab-layout">
     <div class="panel">
       <p class="panel-title">💼 พอร์ตการลงทุน (สมุดพกลงทุน)</p>
@@ -687,11 +730,11 @@
 
 
     <div class="panel">
-      <p class="panel-title">🏷️ ข้อมูลสินทรัพย์ (Sector / Industry / Asset Class)</p>
-      <p class="panel-sub">กรอกข้อมูลเองต่อหุ้น เพื่อให้กราฟสัดส่วนด้านล่างแยกตาม Sector/Industry/Asset Class ได้ (สกุลเงินไม่ต้องกรอก ระบบดึงจากธุรกรรมอัตโนมัติ)</p>
+      <p class="panel-title">🏷️ ข้อมูลสินทรัพย์ (Sector / Industry / Country / Asset Class)</p>
+      <p class="panel-sub">กรอกข้อมูลเองต่อหุ้น เพื่อให้กราฟสัดส่วนด้านล่างและกราฟ Holdings แยกตามหมวดหมู่ได้ (สกุลเงินไม่ต้องกรอก ระบบดึงจากธุรกรรมอัตโนมัติ)</p>
       <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>หุ้น</th><th>Sector</th><th>Industry</th><th>Asset Class</th></tr></thead>
+        <thead><tr><th>หุ้น</th><th>Sector</th><th>Industry</th><th>Country</th><th>Asset Class</th></tr></thead>
         <tbody id="asset-info-body"></tbody>
       </table>
       </div>
@@ -735,7 +778,7 @@ var activeGoalId = null;
 var goalIdCounter = 1;
 var targetAllocations = []; /* [{id, symbol, targetPercent}] */
 var targetAllocIdCounter = 1;
-var assetInfo = {}; /* {SYMBOL: {sector, industry, assetClass}} */
+var assetInfo = {}; /* {SYMBOL: {sector, industry, country, assetClass}} */
 var dividendForecasts = []; /* [{id, symbol, month(1-12), amount, note}] */
 var forecastId = 0;
 var THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -2722,6 +2765,290 @@ function renderAllocationBreakdownCharts(holdings){
   renderDonutChart('alloc-assetclass-chart', toSegments(byAssetClass));
 }
 
+/* ---------- Holdings tab: "My Holdings" gain chart (bar / treemap) ---------- */
+var hcGroupBy = 'ticker';   /* 'ticker' | 'sector' | 'industry' | 'country' | 'assetType' */
+var hcMetric = 'value';     /* 'value' | 'percent' */
+var hcCurrency = 'THB';     /* 'THB' | 'USD' */
+var hcRange = 'All';        /* '1d' | '1w' | '1m' | '3m' | '6m' | 'Ytd' | '1y' | 'All' */
+var hcView = 'bar';         /* 'bar' | 'treemap' */
+var hcCache = {};           /* { range: { symbol: {baseline, latest, currency} } } */
+var hcLoading = false;
+
+function hcYahooRange(range){
+  switch(range){
+    case '1d': return '5d';
+    case '1w': return '5d';
+    case '1m': return '1mo';
+    case '3m': return '3mo';
+    case '6m': return '6mo';
+    case 'Ytd': return 'ytd';
+    case '1y': return '1y';
+    default: return 'max';
+  }
+}
+function hcYahooSymbol(sym){ return getSymbolCurrency(sym) === 'USD' ? sym : (sym + '.BK'); }
+
+/* fetches historical closes for every currently-held symbol for the given range and fills hcCache;
+   also refreshes currentPrices/currentPricesForeign with the latest close, same side-effect as the
+   "ดึงราคาทั้งหมด" button, so the rest of the app stays in sync */
+function fetchHoldingsChartData(range){
+  var holdings = computeHoldings();
+  var syms = Object.keys(holdings).filter(function(s){ return holdings[s].qty > 0.0001; });
+  if(!syms.length){ return Promise.resolve(); }
+  var yahooRange = hcYahooRange(range);
+  hcCache[range] = hcCache[range] || {};
+  var promises = syms.map(function(sym){
+    return fetchYahooHistory(hcYahooSymbol(sym), yahooRange).then(function(points){
+      if(!points || points.length < 2) throw new Error('not enough data');
+      var baseline, latest;
+      if(range === '1d'){
+        baseline = points[points.length - 2].close;
+        latest = points[points.length - 1].close;
+      } else {
+        baseline = points[0].close;
+        latest = points[points.length - 1].close;
+      }
+      var currency = getSymbolCurrency(sym);
+      hcCache[range][sym] = {baseline: baseline, latest: latest, currency: currency};
+      if(currency === 'USD'){
+        var fx = referenceFxRate || (currentPricesForeign[sym] && currentPricesForeign[sym].fxRate) || null;
+        currentPricesForeign[sym] = {priceUSD: latest, fxRate: fx || (currentPricesForeign[sym] && currentPricesForeign[sym].fxRate) || null};
+        if(fx){ currentPrices[sym] = latest * fx; }
+      } else {
+        currentPrices[sym] = latest;
+      }
+    }).catch(function(){ /* leave this symbol out of the cache; row will just be skipped */ });
+  });
+  return Promise.all(promises);
+}
+
+function hcCategoryFor(sym){
+  var info = assetInfo[sym] || {};
+  switch(hcGroupBy){
+    case 'sector': return info.sector || 'ยังไม่ระบุ';
+    case 'industry': return info.industry || 'ยังไม่ระบุ';
+    case 'country': return info.country || 'ยังไม่ระบุ';
+    case 'assetType': return info.assetClass || 'ยังไม่ระบุ';
+    default: return sym;
+  }
+}
+
+function computeHoldingsChartRows(){
+  var holdings = computeHoldings();
+  var cache = hcCache[hcRange] || {};
+  var fx = referenceFxRate || 35;
+  var rows = [];
+  Object.keys(holdings).forEach(function(sym){
+    var h = holdings[sym];
+    if(h.qty <= 0.0001) return;
+    var c = cache[sym];
+    if(!c) return;
+    var gainValueNative = (c.latest - c.baseline) * h.qty;
+    var gainPercent = c.baseline !== 0 ? ((c.latest / c.baseline) - 1) * 100 : 0;
+    var marketValueNative = c.latest * h.qty;
+    var gainValueDisplay = gainValueNative, marketValueDisplay = marketValueNative;
+    if(c.currency === 'USD' && hcCurrency === 'THB'){ gainValueDisplay *= fx; marketValueDisplay *= fx; }
+    else if(c.currency === 'THB' && hcCurrency === 'USD'){ gainValueDisplay /= fx; marketValueDisplay /= fx; }
+    rows.push({
+      symbol: sym, category: hcCategoryFor(sym), nativeCurrency: c.currency,
+      gainValue: gainValueDisplay, gainPercent: gainPercent, marketValue: marketValueDisplay
+    });
+  });
+  var metricKey = hcMetric === 'percent' ? 'gainPercent' : 'gainValue';
+  if(hcGroupBy === 'ticker'){
+    rows.sort(function(a, b){ return b[metricKey] - a[metricKey]; });
+  } else {
+    var catTotals = {};
+    rows.forEach(function(r){ catTotals[r.category] = (catTotals[r.category] || 0) + r[metricKey]; });
+    rows.sort(function(a, b){
+      if(a.category !== b.category){ return catTotals[b.category] - catTotals[a.category]; }
+      return b[metricKey] - a[metricKey];
+    });
+  }
+  return rows;
+}
+
+function hcCurrencySymbol(){ return hcCurrency === 'USD' ? '$' : '฿'; }
+
+function renderHoldingsBarChart(rows){
+  var container = document.getElementById('holdings-chart-container');
+  if(!rows.length){ container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่มีข้อมูล กด "1d" หรือช่วงเวลาใดๆ ด้านบนเพื่อดึงราคาย้อนหลัง</p>'; return; }
+  var metricKey = hcMetric === 'percent' ? 'gainPercent' : 'gainValue';
+  var n = rows.length;
+  var w = Math.max(700, n * 90), h = 340, padL = 60, padR = 15, padT = 15, padB = 46;
+  var maxV = Math.max.apply(null, rows.map(function(r){ return r[metricKey]; }).concat([0]));
+  var minV = Math.min.apply(null, rows.map(function(r){ return r[metricKey]; }).concat([0]));
+  if(maxV === minV){ maxV += 1; }
+  var pad = (maxV - minV) * 0.15;
+  maxV += pad; minV -= pad;
+  var bandW = (w - padL - padR) / n;
+  function yPos(v){ return padT + (h - padT - padB) * (1 - (v - minV) / (maxV - minV)); }
+  var zeroY = yPos(0);
+  var gridLines = '';
+  for(var g = 0; g <= 4; g++){
+    var v = minV + (maxV - minV) * g / 4;
+    var y = yPos(v);
+    gridLines += '<line x1="' + padL + '" y1="' + y + '" x2="' + (w - padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1" />';
+    gridLines += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" font-size="10" fill="var(--text-muted)" text-anchor="end">' + (hcMetric === 'percent' ? v.toFixed(1) + '%' : hcCurrencySymbol() + fmtCompact(v)) + '</text>';
+  }
+  var bars = '';
+  rows.forEach(function(r, i){
+    var x = padL + i * bandW;
+    var barW = Math.min(48, bandW * 0.55);
+    var bx = x + (bandW - barW) / 2;
+    var val = r[metricKey];
+    var y = yPos(val);
+    var barY = Math.min(y, zeroY), barH = Math.abs(y - zeroY);
+    var color = val >= 0 ? 'var(--text-success)' : 'var(--text-danger)';
+    bars += '<rect x="' + bx + '" y="' + barY + '" width="' + barW + '" height="' + Math.max(barH, 1) + '" fill="' + color + '" rx="2" />';
+    var showCategory = hcGroupBy !== 'ticker' && (i === 0 || rows[i - 1].category !== r.category);
+    var labelY = h - padB + 16;
+    if(showCategory){
+      bars += '<text x="' + (x + bandW / 2) + '" y="' + (labelY) + '" font-size="9" fill="var(--text-muted)" text-anchor="middle">' + escapeHtml(r.category) + '</text>';
+      labelY += 13;
+    }
+    bars += '<text x="' + (x + bandW / 2) + '" y="' + labelY + '" font-size="10" fill="var(--text-secondary)" text-anchor="middle" font-weight="600">' + escapeHtml(r.symbol) + '</text>';
+  });
+  var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;min-width:' + w + 'px;">' + gridLines +
+    '<line x1="' + padL + '" y1="' + zeroY + '" x2="' + (w - padR) + '" y2="' + zeroY + '" stroke="var(--text-secondary)" stroke-width="1.5" />' +
+    bars + '</svg>';
+  container.innerHTML = '<div style="overflow-x:auto;">' + svg + '</div>';
+}
+
+/* classic squarified treemap layout: items need a positive .value; returns [{item, x, y, w, h}] in the
+   same x/y/w/h units passed in (caller picks the coordinate space, e.g. a 0..1000 x 0..500 viewBox) */
+function squarifyTreemap(items, x, y, w, h){
+  var rects = [];
+  var total = items.reduce(function(s, it){ return s + it.value; }, 0);
+  if(total <= 0 || !items.length) return rects;
+  var scale = (w * h) / total;
+  var remaining = items.map(function(it){ return {item: it, area: it.value * scale}; });
+  var rx = x, ry = y, rw = w, rh = h;
+  while(remaining.length){
+    var horizontal = rw >= rh; /* strip runs along the shorter side */
+    var sideLen = horizontal ? rh : rw;
+    var strip = [], stripSum = 0, bestWorst = Infinity;
+    for(var i = 0; i < remaining.length; i++){
+      var testStrip = strip.concat([remaining[i]]);
+      var testSum = stripSum + remaining[i].area;
+      var thickness = testSum / sideLen;
+      var worst = 0;
+      testStrip.forEach(function(r){
+        var len = r.area / thickness;
+        var ratio = Math.max(thickness / len, len / thickness);
+        if(ratio > worst) worst = ratio;
+      });
+      if(worst <= bestWorst){ bestWorst = worst; strip = testStrip; stripSum = testSum; }
+      else { break; }
+    }
+    var thickness = stripSum / sideLen;
+    var offset = 0;
+    strip.forEach(function(r){
+      var len = r.area / thickness;
+      if(horizontal){ rects.push({item: r.item, x: rx, y: ry + offset, w: thickness, h: len}); }
+      else { rects.push({item: r.item, x: rx + offset, y: ry, w: len, h: thickness}); }
+      offset += len;
+    });
+    if(horizontal){ rx += thickness; rw -= thickness; }
+    else { ry += thickness; rh -= thickness; }
+    remaining = remaining.slice(strip.length);
+  }
+  return rects;
+}
+
+function hcTreemapColor(value, maxAbs){
+  if(maxAbs <= 0) return 'var(--surface-2)';
+  var intensity = Math.min(1, Math.abs(value) / maxAbs); /* 0 = pale, 1 = fully saturated */
+  if(value >= 0){
+    /* pale mint -> solid green */
+    var l = 92 - intensity * 50;
+    return 'hsl(152, 55%, ' + l + '%)';
+  }
+  var l2 = 95 - intensity * 40;
+  return 'hsl(4, 70%, ' + l2 + '%)';
+}
+
+function renderHoldingsTreemap(rows){
+  var container = document.getElementById('holdings-chart-container');
+  if(!rows.length){ container.innerHTML = '<p style="padding:2rem 0;text-align:center;color:var(--text-muted);font-size:13px;">ยังไม่มีข้อมูล กด "1d" หรือช่วงเวลาใดๆ ด้านบนเพื่อดึงราคาย้อนหลัง</p>'; return; }
+  var metricKey = hcMetric === 'percent' ? 'gainPercent' : 'gainValue';
+  var maxAbs = Math.max.apply(null, rows.map(function(r){ return Math.abs(r[metricKey]); }).concat([0.0001]));
+  var w = 1000, h = 460;
+  var items = rows.map(function(r){ return {value: Math.max(r.marketValue, 0.01), row: r}; });
+  var rects = squarifyTreemap(items, 0, 0, w, h);
+  var tiles = rects.map(function(rc){
+    var r = rc.item.row;
+    var color = hcTreemapColor(r[metricKey], maxAbs);
+    var showLabel = rc.w > 55 && rc.h > 30;
+    var showCategory = hcGroupBy !== 'ticker' && rc.w > 55 && rc.h > 48;
+    var metricLabel = hcMetric === 'percent' ? (r.gainPercent >= 0 ? '+' : '') + r.gainPercent.toFixed(2) + '%' : (r.gainValue >= 0 ? '+' : '') + hcCurrencySymbol() + fmtCompact(r.gainValue);
+    return '<div title="' + escapeAttr(r.symbol + ' — ' + metricLabel) + '" style="position:absolute;left:' + rc.x + 'px;top:' + rc.y + 'px;width:' + rc.w + 'px;height:' + rc.h + 'px;background:' + color + ';border:1px solid var(--surface-1);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;">' +
+      (showLabel ? ('<span style="font-size:12px;font-weight:600;color:#111;">' + escapeHtml(r.symbol) + '</span>' + (showCategory ? '<span style="font-size:9px;color:#333;opacity:0.75;">' + escapeHtml(r.category) + '</span>' : '')) : '') +
+      '</div>';
+  }).join('');
+  container.innerHTML = '<div style="position:relative;width:100%;max-width:' + w + 'px;aspect-ratio:' + w + '/' + h + ';margin:0 auto;">' + tiles + '</div>';
+}
+
+function renderHoldingsChart(){
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-groupby-btn'), function(btn){ btn.classList.toggle('active', btn.getAttribute('data-groupby') === hcGroupBy); });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-metric-btn'), function(btn){ btn.classList.toggle('active', btn.getAttribute('data-metric') === hcMetric); });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-currency-btn'), function(btn){ btn.classList.toggle('active', btn.getAttribute('data-currency') === hcCurrency); });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-range-btn'), function(btn){ btn.classList.toggle('active', btn.getAttribute('data-range') === hcRange); });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-view-btn'), function(btn){ btn.classList.toggle('active', btn.getAttribute('data-view') === hcView); });
+
+  var fxNote = document.getElementById('hc-fx-note');
+  if(!referenceFxRate){
+    fxNote.style.display = 'block';
+    fxNote.textContent = '* ใช้อัตราแลกเปลี่ยนโดยประมาณ 35 บาท/ดอลลาร์ในการแปลงสกุลเงิน เนื่องจากยังไม่ได้ตั้งอัตราอ้างอิง (ตั้งได้ที่ด้านบนสุดของแท็บ Overview) เพื่อความแม่นยำ';
+  } else {
+    fxNote.style.display = 'none';
+  }
+
+  var rows = computeHoldingsChartRows();
+  if(hcView === 'treemap'){ renderHoldingsTreemap(rows); }
+  else { renderHoldingsBarChart(rows); }
+}
+
+function hcEnsureDataThenRender(){
+  var holdings = computeHoldings();
+  var heldSyms = Object.keys(holdings).filter(function(s){ return holdings[s].qty > 0.0001; });
+  var cache = hcCache[hcRange] || {};
+  var missing = heldSyms.filter(function(s){ return !cache[s]; });
+  if(!missing.length){ renderHoldingsChart(); return; }
+  hcLoading = true;
+  document.getElementById('hc-loading').style.display = 'inline';
+  fetchHoldingsChartData(hcRange).then(function(){
+    hcLoading = false;
+    document.getElementById('hc-loading').style.display = 'none';
+    saveData();
+    renderHoldingsChart();
+  });
+}
+
+function wireHoldingsChartControlsOnce(){
+  if(wireHoldingsChartControlsOnce._wired) return;
+  wireHoldingsChartControlsOnce._wired = true;
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-groupby-btn'), function(btn){
+    btn.addEventListener('click', function(){ hcGroupBy = this.getAttribute('data-groupby'); renderHoldingsChart(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-metric-btn'), function(btn){
+    btn.addEventListener('click', function(){ hcMetric = this.getAttribute('data-metric'); renderHoldingsChart(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-currency-btn'), function(btn){
+    btn.addEventListener('click', function(){ hcCurrency = this.getAttribute('data-currency'); renderHoldingsChart(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-view-btn'), function(btn){
+    btn.addEventListener('click', function(){ hcView = this.getAttribute('data-view'); renderHoldingsChart(); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.hc-range-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      if(hcLoading) return;
+      hcRange = this.getAttribute('data-range');
+      hcEnsureDataThenRender();
+    });
+  });
+}
+
 function renderAssetInfoTable(holdings){
   var symbolSet = {};
   Object.keys(holdings).forEach(function(sym){ if(holdings[sym].qty > 0.0001){ symbolSet[sym] = true; } });
@@ -2737,10 +3064,11 @@ function renderAssetInfoTable(holdings){
       '<td style="font-weight:500;">' + escapeHtml(sym) + '</td>' +
       '<td><input type="text" class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="sector" value="' + escapeAttr(info.sector||'') + '" placeholder="เช่น เทคโนโลยี" /></td>' +
       '<td><input type="text" class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="industry" value="' + escapeAttr(info.industry||'') + '" placeholder="เช่น ธนาคาร" /></td>' +
+      '<td><input type="text" class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="country" value="' + escapeAttr(info.country||'') + '" placeholder="เช่น สหรัฐฯ" /></td>' +
       '<td><select class="asset-info-input" data-symbol="' + escapeAttr(sym) + '" data-field="assetClass">' + optionsHtml + '</select></td>' +
       '</tr>';
   }).join('');
-  document.getElementById('asset-info-body').innerHTML = rows || '<tr><td colspan="4" style="color:var(--text-muted);">ยังไม่มีหุ้นในพอร์ต</td></tr>';
+  document.getElementById('asset-info-body').innerHTML = rows || '<tr><td colspan="5" style="color:var(--text-muted);">ยังไม่มีหุ้นในพอร์ต</td></tr>';
   Array.prototype.forEach.call(document.querySelectorAll('.asset-info-input'), function(el){
     el.addEventListener('change', function(){
       var sym = this.getAttribute('data-symbol');
@@ -2749,6 +3077,7 @@ function renderAssetInfoTable(holdings){
       assetInfo[sym][field] = this.value;
       saveData();
       renderAllocationBreakdownCharts(computeHoldings());
+      renderHoldingsChart();
     });
   });
 }
@@ -3185,6 +3514,10 @@ function render(){
       '</tr>';
   }).join('');
   document.getElementById('snap-body').innerHTML = snapRows || '<tr><td colspan="' + (8 + benchmarkComponents.length) + '" style="color:var(--text-muted);">ยังไม่มี Snapshot</td></tr>';
+
+  /* ---------- Holdings tab: My Holdings gain chart ---------- */
+  wireHoldingsChartControlsOnce();
+  renderHoldingsChart();
 
   /* ---------- Goal Tracker tab ---------- */
   renderGoalTracker();
@@ -3959,7 +4292,7 @@ applyTheme(savedTheme);
 updatePinButtons();
 
 /* ---------- tabs ---------- */
-var TAB_NAMES = ['overview', 'goals', 'holdings', 'performance', 'dividends', 'allocation'];
+var TAB_NAMES = ['overview', 'holdings', 'performance', 'dividends', 'allocation', 'goals'];
 function switchTab(tabName){
   TAB_NAMES.forEach(function(name){
     var btn = document.getElementById('tab-btn-' + name);
@@ -3972,12 +4305,22 @@ function switchTab(tabName){
 }
 TAB_NAMES.forEach(function(name){
   var btn = document.getElementById('tab-btn-' + name);
-  if(btn){ btn.addEventListener('click', function(){ switchTab(name); }); }
+  if(btn){ btn.addEventListener('click', function(){
+    switchTab(name);
+    if(name === 'holdings'){ hcMaybeAutoFetch(); }
+  }); }
 });
+var hcAutoFetchedOnce = false;
+function hcMaybeAutoFetch(){
+  if(hcAutoFetchedOnce) return;
+  hcAutoFetchedOnce = true;
+  hcEnsureDataThenRender();
+}
 var savedTab = 'overview';
 try{ savedTab = localStorage.getItem('investmentTrackerActiveTab') || 'overview'; }catch(e){}
 if(TAB_NAMES.indexOf(savedTab) === -1){ savedTab = 'overview'; }
 switchTab(savedTab);
+if(savedTab === 'holdings'){ hcMaybeAutoFetch(); }
 
 function initApp(){
   if(stateLoadedFrom !== 'firestore'){
