@@ -1346,11 +1346,18 @@ function computeHoldingsAsOf(date){
   return total + computeCashBalanceAsOf(date);
 }
 
+/* NOTE: buy/sell transactions are intentionally EXCLUDED from this external cash-flow
+   calculation. Portfolio "value" (whether entered manually or auto-computed via
+   computeHoldingsAsOf) already equals cash balance + holdings market value, and
+   computeCashBalanceAsOf() already nets buys/sells against the cash balance (cash down,
+   holdings up by the same amount). So a buy/sell is an INTERNAL reallocation that doesn't
+   change total portfolio value — it must not also be counted as an external cash flow here,
+   or money that was deposited and then used to buy stock gets subtracted twice (once as the
+   deposit, once again as the buy), which can make TWRR/NAV swing wildly negative even though
+   no real loss occurred. Only genuinely external money movements — deposits/withdrawals and
+   dividends leaving the tracked value — belong in cf. */
 function cfInRange(prevDate, currDate, incDiv){
   var cf = 0;
-  transactions.forEach(function(t){
-    if(t.date > prevDate && t.date <= currDate){ cf += (t.type === 'buy' ? 1 : -1) * txCashAmount(t); }
-  });
   if(incDiv){
     dividendEntries.forEach(function(d){
       if(d.date > prevDate && d.date <= currDate){ cf -= d.amount; }
